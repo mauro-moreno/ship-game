@@ -34,6 +34,11 @@ test_debug_commands_are_explicit_simulation_mutation_requests :: proc(t: ^testin
 	select_object := debug_select_object_command(Object_ID(1))
 	toggle_hitbox := debug_toggle_selected_hitbox_command()
 	toggle_velocity := debug_toggle_selected_velocity_vector_command()
+	toggle_trace_object := debug_toggle_trace_object_filter_command()
+	toggle_trace_frame := debug_toggle_trace_frame_range_filter_command()
+	toggle_trace_kind := debug_toggle_trace_event_kind_filter_command(.Ship_Moved)
+	toggle_break_event := debug_toggle_break_on_event_kind_command(.Ship_Moved)
+	toggle_break_invariant := debug_toggle_break_on_invariant_failure_command()
 
 	testing.expect_value(t, pause.kind, Debug_Command_Kind.Pause)
 	testing.expect_value(t, resume.kind, Debug_Command_Kind.Resume)
@@ -46,6 +51,13 @@ test_debug_commands_are_explicit_simulation_mutation_requests :: proc(t: ^testin
 	testing.expect_value(t, select_object.object_id, Object_ID(1))
 	testing.expect_value(t, toggle_hitbox.kind, Debug_Command_Kind.Toggle_Selected_Hitbox)
 	testing.expect_value(t, toggle_velocity.kind, Debug_Command_Kind.Toggle_Selected_Velocity_Vector)
+	testing.expect_value(t, toggle_trace_object.kind, Debug_Command_Kind.Toggle_Trace_Object_Filter)
+	testing.expect_value(t, toggle_trace_frame.kind, Debug_Command_Kind.Toggle_Trace_Frame_Range_Filter)
+	testing.expect_value(t, toggle_trace_kind.kind, Debug_Command_Kind.Toggle_Trace_Event_Kind_Filter)
+	testing.expect_value(t, toggle_trace_kind.event_kind, Event_Kind.Ship_Moved)
+	testing.expect_value(t, toggle_break_event.kind, Debug_Command_Kind.Toggle_Break_On_Event_Kind)
+	testing.expect_value(t, toggle_break_event.event_kind, Event_Kind.Ship_Moved)
+	testing.expect_value(t, toggle_break_invariant.kind, Debug_Command_Kind.Toggle_Break_On_Invariant_Failure)
 	testing.expect_value(t, NO_DEBUG_COMMAND.kind, Debug_Command_Kind.None)
 }
 
@@ -75,8 +87,12 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	after := capture_state_snapshot(state, Object_ID(1))
 	diff := diff_state_snapshots(before, after)
 	trace := run_scenario_with_trace(scenario).trace
+	trace_filter := trace_filter_for_object_kind_and_frame_range(Object_ID(1), .Ship_Moved, 0, 1)
+	invariant_report := validate_simulation_invariants(state)
+	breakpoints := default_frame_breakpoints()
+	breakpoint_match := frame_breakpoint_match(breakpoints, trace, invariant_report)
 
-	overlay := inspector_overlay_view(.Dev, scenario, sim_view, toggles, true, Object_ID(1), visuals, diff, trace)
+	overlay := inspector_overlay_view(.Dev, scenario, sim_view, toggles, true, Object_ID(1), visuals, diff, trace, trace_filter, invariant_report, breakpoints, breakpoint_match)
 
 	testing.expect_value(t, overlay.build_mode, Build_Mode.Dev)
 	testing.expect(t, overlay.paused)
@@ -91,5 +107,30 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	testing.expect_value(t, overlay.render_debug.selected_object_id, Object_ID(1))
 	testing.expect_value(t, overlay.render_debug.ship_debug_visuals, visuals)
 	testing.expect_value(t, overlay.scenarios.count, 1)
-	testing.expect_value(t, overlay.selected_trace.count, 2)
+	testing.expect(t, overlay.invariant_report.ok)
+	testing.expect_value(t, overlay.trace_filter, trace_filter)
+	testing.expect_value(t, overlay.filtered_trace.count, 1)
+	testing.expect_value(t, overlay.filtered_trace.entries[0].kind, Event_Kind.Ship_Moved)
+	testing.expect(t, !overlay.breakpoint_match.matched)
+}
+
+@(test)
+test_frame_breakpoints_match_event_kind_and_invariant_failure :: proc(t: ^testing.T) {
+	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+
+	breakpoints := default_frame_breakpoints()
+	toggle_frame_breakpoint_event_kind(&breakpoints, .Ship_Moved)
+	event_match := frame_breakpoint_match(breakpoints, trace, Invariant_Report{ok = true})
+
+	testing.expect(t, event_match.matched)
+	testing.expect_value(t, event_match.reason, Frame_Breakpoint_Reason.Event_Kind)
+	testing.expect_value(t, event_match.event.kind, Event_Kind.Ship_Moved)
+
+	invariant_breakpoints := default_frame_breakpoints()
+	toggle_frame_breakpoint_invariant_failure(&invariant_breakpoints)
+	invariant_match := frame_breakpoint_match(invariant_breakpoints, Event_Trace{}, Invariant_Report{ok = false, failure_count = 1})
+
+	testing.expect(t, invariant_match.matched)
+	testing.expect_value(t, invariant_match.reason, Frame_Breakpoint_Reason.Invariant_Failure)
+	testing.expect_value(t, invariant_match.invariant_report.failure_count, 1)
 }

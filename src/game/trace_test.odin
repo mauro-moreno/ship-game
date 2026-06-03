@@ -47,3 +47,33 @@ test_trace_can_be_filtered_by_selected_object_id :: proc(t: ^testing.T) {
 	testing.expect_value(t, selected.entries[1].object_id, Object_ID(1))
 	testing.expect_value(t, missing.count, 0)
 }
+
+@(test)
+test_trace_filter_supports_frame_range_object_id_and_event_kind :: proc(t: ^testing.T) {
+	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+	filter := trace_filter_for_object_kind_and_frame_range(Object_ID(1), .Ship_Moved, Frame_Step_Index(1), Frame_Step_Index(1))
+
+	filtered := trace_filter(trace, filter)
+
+	testing.expect_value(t, filtered.count, 1)
+	testing.expect_value(t, filtered.entries[0].kind, Event_Kind.Ship_Moved)
+	testing.expect_value(t, filtered.entries[0].frame, Frame_Step_Index(1))
+	testing.expect_value(t, filtered.entries[0].object_id, Object_ID(1))
+}
+
+@(test)
+test_trace_tail_keeps_most_recent_events :: proc(t: ^testing.T) {
+	tail: Event_Trace
+
+	for i in 0..<MAX_EVENT_TRACE_ENTRIES + 2 {
+		trace_tail_append(&tail, Event_Trace_Entry {
+			kind = .Ship_Moved,
+			frame = Frame_Step_Index(i),
+			object_id = Object_ID(1),
+		})
+	}
+
+	testing.expect_value(t, tail.count, MAX_EVENT_TRACE_ENTRIES)
+	testing.expect_value(t, tail.entries[0].frame, Frame_Step_Index(2))
+	testing.expect_value(t, tail.entries[tail.count - 1].frame, Frame_Step_Index(MAX_EVENT_TRACE_ENTRIES + 1))
+}

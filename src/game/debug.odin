@@ -14,12 +14,37 @@ Debug_Command_Kind :: enum {
 	Select_Object,
 	Toggle_Selected_Hitbox,
 	Toggle_Selected_Velocity_Vector,
+	Toggle_Trace_Object_Filter,
+	Toggle_Trace_Frame_Range_Filter,
+	Toggle_Trace_Event_Kind_Filter,
+	Toggle_Break_On_Event_Kind,
+	Toggle_Break_On_Invariant_Failure,
 }
 
 Debug_Command :: struct {
 	kind:        Debug_Command_Kind,
 	scenario_id: Scenario_Id,
 	object_id:   Object_ID,
+	event_kind:  Event_Kind,
+}
+
+Frame_Breakpoint_Reason :: enum {
+	None,
+	Event_Kind,
+	Invariant_Failure,
+}
+
+Frame_Breakpoints :: struct {
+	pause_on_event_kind:        bool,
+	event_kind:                 Event_Kind,
+	pause_on_invariant_failure: bool,
+}
+
+Frame_Breakpoint_Match :: struct {
+	matched:          bool,
+	reason:           Frame_Breakpoint_Reason,
+	event:            Event_Trace_Entry,
+	invariant_report: Invariant_Report,
 }
 
 Scenario_Browser_Item :: struct {
@@ -44,6 +69,11 @@ Inspector_Overlay_View :: struct {
 	scenarios:     Scenario_Browser_View,
 	snapshot_diff: State_Snapshot_Diff,
 	selected_trace: Event_Trace,
+	trace_filter:  Trace_Filter,
+	filtered_trace: Event_Trace,
+	invariant_report: Invariant_Report,
+	frame_breakpoints: Frame_Breakpoints,
+	breakpoint_match:  Frame_Breakpoint_Match,
 }
 
 NO_DEBUG_COMMAND :: Debug_Command{kind = .None}
@@ -80,6 +110,26 @@ debug_toggle_selected_velocity_vector_command :: proc() -> Debug_Command {
 	return Debug_Command{kind = .Toggle_Selected_Velocity_Vector}
 }
 
+debug_toggle_trace_object_filter_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Trace_Object_Filter}
+}
+
+debug_toggle_trace_frame_range_filter_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Trace_Frame_Range_Filter}
+}
+
+debug_toggle_trace_event_kind_filter_command :: proc(kind: Event_Kind) -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Trace_Event_Kind_Filter, event_kind = kind}
+}
+
+debug_toggle_break_on_event_kind_command :: proc(kind: Event_Kind) -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Break_On_Event_Kind, event_kind = kind}
+}
+
+debug_toggle_break_on_invariant_failure_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Break_On_Invariant_Failure}
+}
+
 scenario_browser_view :: proc(active_id: Scenario_Id) -> Scenario_Browser_View {
 	view: Scenario_Browser_View
 	scenario := player_moves_forward_scenario()
@@ -112,6 +162,10 @@ inspector_overlay_view :: proc(
 	ship_debug_visuals: Ship_Debug_Visual_Toggles,
 	snapshot_diff: State_Snapshot_Diff,
 	trace: Event_Trace,
+	filter: Trace_Filter,
+	invariant_report: Invariant_Report,
+	breakpoints: Frame_Breakpoints,
+	breakpoint_match: Frame_Breakpoint_Match,
 ) -> Inspector_Overlay_View {
 	return Inspector_Overlay_View {
 		build_mode = mode,
@@ -124,6 +178,57 @@ inspector_overlay_view :: proc(
 		scenarios = scenario_browser_view(scenario.id),
 		snapshot_diff = snapshot_diff,
 		selected_trace = trace_filter_by_object(trace, selected_object_id),
+		trace_filter = filter,
+		filtered_trace = trace_filter(trace, filter),
+		invariant_report = invariant_report,
+		frame_breakpoints = breakpoints,
+		breakpoint_match = breakpoint_match,
+	}
+}
+
+default_frame_breakpoints :: proc() -> Frame_Breakpoints {
+	return Frame_Breakpoints{event_kind = .Ship_Moved}
+}
+
+toggle_frame_breakpoint_event_kind :: proc(breakpoints: ^Frame_Breakpoints, kind: Event_Kind) {
+	if breakpoints.pause_on_event_kind && breakpoints.event_kind == kind {
+		breakpoints.pause_on_event_kind = false
+		return
+	}
+
+	breakpoints.pause_on_event_kind = true
+	breakpoints.event_kind = kind
+}
+
+toggle_frame_breakpoint_invariant_failure :: proc(breakpoints: ^Frame_Breakpoints) {
+	breakpoints.pause_on_invariant_failure = !breakpoints.pause_on_invariant_failure
+}
+
+frame_breakpoint_match :: proc(breakpoints: Frame_Breakpoints, trace: Event_Trace, invariant_report: Invariant_Report) -> Frame_Breakpoint_Match {
+	if breakpoints.pause_on_invariant_failure && !invariant_report.ok {
+		return Frame_Breakpoint_Match {
+			matched = true,
+			reason = .Invariant_Failure,
+			invariant_report = invariant_report,
+		}
+	}
+
+	if breakpoints.pause_on_event_kind {
+		for i in 0..<trace.count {
+			entry := trace.entries[i]
+			if entry.kind == breakpoints.event_kind {
+				return Frame_Breakpoint_Match {
+					matched = true,
+					reason = .Event_Kind,
+					event = entry,
+					invariant_report = invariant_report,
+				}
+			}
+		}
+	}
+
+	return Frame_Breakpoint_Match {
+		invariant_report = invariant_report,
 	}
 }
 
