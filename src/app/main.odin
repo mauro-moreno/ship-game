@@ -12,6 +12,7 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	for !rl.WindowShouldClose() {
-		render_frame(mode)
+		intent := read_control_intent()
+		render_frame(mode, intent)
 	}
 }

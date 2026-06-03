@@ -65,12 +65,16 @@ DEFAULT_SHIP_MOVEMENT :: Ship_Movement {
 }
 
 initial_simulation_state :: proc() -> Simulation_State {
+	return initial_simulation_state_with_heading(0)
+}
+
+initial_simulation_state_with_heading :: proc(heading: f32) -> Simulation_State {
 	return Simulation_State {
 		frame = 0,
 		ship = Ship_State {
 			id = 1,
 			position = {},
-			heading = 0,
+			heading = heading,
 			velocity = {},
 			hitbox = {half_width = 18, half_height = 28},
 			movement = DEFAULT_SHIP_MOVEMENT,

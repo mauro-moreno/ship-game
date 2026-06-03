@@ -3,7 +3,7 @@ package main
 import game "ship:game"
 import rl "vendor:raylib"
 
-render_frame :: proc(mode: game.Build_Mode) {
+render_frame :: proc(mode: game.Build_Mode, intent: game.Control_Intent) {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
@@ -13,4 +13,6 @@ render_frame :: proc(mode: game.Build_Mode) {
 	when game.CONFIGURED_BUILD_MODE_NAME == "dev" {
 		draw_inspector_overlay(mode)
 	}
+
+	_ = intent
 }
