@@ -43,5 +43,6 @@ main :: proc() {
 		overlay_view := app_inspector_overlay_view(app_state, mode)
 		render_timing := render_frame(overlay_view, debug_console_text(&app_state), app_state.debug_console_feedback)
 		record_app_render_timing(&app_state, mode, render_timing, fps, frame_time_seconds)
+		export_debug_dump_if_requested(&app_state, mode)
 	}
 }

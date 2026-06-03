@@ -66,6 +66,9 @@ read_inspector_overlay_command :: proc(view: game.Inspector_Overlay_View) -> gam
 	if point_hits(mouse, step_button_rect()) {
 		return game.debug_step_frame_command()
 	}
+	if point_hits(mouse, dump_button_rect()) {
+		return game.debug_export_dump_command()
+	}
 	if point_hits(mouse, hitbox_button_rect()) {
 		return game.debug_toggle_selected_hitbox_command()
 	}
@@ -144,6 +147,7 @@ draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View, console_text, 
 	draw_button(pause_button_rect(), "Pause")
 	draw_button(resume_button_rect(), "Resume")
 	draw_button(step_button_rect(), "Step")
+	draw_button(dump_button_rect(), "Dump")
 	draw_button(hitbox_button_rect(), fmt.ctprintf("Hitbox %s", on_off_text(debug_view.ship_debug_visuals.hitbox)))
 	draw_button(velocity_button_rect(), fmt.ctprintf("Vector %s", on_off_text(debug_view.ship_debug_visuals.velocity_vector)))
 	draw_button(trace_object_filter_button_rect(), fmt.ctprintf("Obj %s", on_off_text(view.trace_filter.use_object_id)))
@@ -295,6 +299,10 @@ resume_button_rect :: proc() -> rl.Rectangle {
 
 step_button_rect :: proc() -> rl.Rectangle {
 	return inspector_button_rect(2, 398)
+}
+
+dump_button_rect :: proc() -> rl.Rectangle {
+	return inspector_button_rect(3, 398)
 }
 
 hitbox_button_rect :: proc() -> rl.Rectangle {

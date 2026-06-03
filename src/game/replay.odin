@@ -67,7 +67,7 @@ replay_to_text :: proc(replay: Replay_Stream) -> string {
 	}
 
 	text := fmt.tprintf(
-		"{\"version\":\"%s\",\"scenario\":\"%s\",\"seed\":%v}\n{\"frame\":0,\"forward_thrust\":%v,\"backward_thrust\":%v,\"turn_left\":%v,\"turn_right\":%v}",
+		"\"version\":\"%s\",\"scenario\":\"%s\",\"seed\":%v\n\"frame\":0,\"forward_thrust\":%v,\"backward_thrust\":%v,\"turn_left\":%v,\"turn_right\":%v",
 		replay.format_version,
 		string(replay.scenario_id),
 		u64(replay.seed),
@@ -80,7 +80,7 @@ replay_to_text :: proc(replay: Replay_Stream) -> string {
 	if replay.debug_command_count > 0 {
 		first_command := replay.debug_commands[0]
 		text = fmt.tprintf(
-			"%s\n{\"frame\":%v,\"debug_command\":\"%v\",\"object_id\":%v,\"scenario\":\"%s\",\"event_kind\":\"%v\"}",
+			"%s\n\"frame\":%v,\"debug_command\":\"%v\",\"object_id\":%v,\"scenario\":\"%s\",\"event_kind\":\"%v\"",
 			text,
 			u64(first_command.frame),
 			first_command.command.kind,

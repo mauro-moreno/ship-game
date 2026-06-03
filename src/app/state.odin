@@ -29,6 +29,8 @@ App_State :: struct {
 	debug_console_length: int,
 	debug_console_feedback: string,
 	debug_dump_requested: bool,
+	debug_dump_reason:    game.Debug_Dump_Reason,
+	automatic_debug_dump_written: bool,
 }
 
 initial_app_state :: proc() -> App_State {
@@ -51,6 +53,7 @@ initial_app_state :: proc() -> App_State {
 		last_render_pass_timings = game.initial_render_pass_timings(),
 		performance_timing = game.performance_timing_view_for_frame(.Dev, game.simulation_view(scenario.initial_state), 0, 0, 0, game.initial_render_pass_timings(), 0, 0),
 		debug_console_feedback = "ready",
+		debug_dump_reason = .Manual_Export,
 	}
 }
 
@@ -115,6 +118,7 @@ apply_app_debug_command :: proc(state: ^App_State, command: game.Debug_Command, 
 		game.toggle_frame_breakpoint_invariant_failure(&state.frame_breakpoints)
 	case .Export_Debug_Dump:
 		state.debug_dump_requested = true
+		state.debug_dump_reason = .Manual_Export
 	}
 }
 
@@ -133,6 +137,12 @@ advance_app_state_one_frame :: proc(state: ^App_State, live_intent: game.Control
 	game.trace_tail_append_all(&state.trace_tail, step.trace)
 	state.invariant_report = game.validate_simulation_invariants(state.simulation)
 	state.breakpoint_match = game.frame_breakpoint_match(state.frame_breakpoints, step.trace, state.invariant_report)
+	if !state.invariant_report.ok && game.automatic_debug_dump_enabled(mode, .Dev_Invariant_Failure) && !state.automatic_debug_dump_written {
+		state.debug_dump_requested = true
+		state.debug_dump_reason = .Dev_Invariant_Failure
+		state.automatic_debug_dump_written = true
+		state.paused = true
+	}
 	if state.breakpoint_match.matched {
 		state.paused = true
 	}
@@ -150,6 +160,9 @@ start_scenario :: proc(state: ^App_State, scenario: game.Scenario, paused: bool)
 	state.trace_filter = game.trace_filter_for_object(state.selected_object_id)
 	state.invariant_report = game.validate_simulation_invariants(state.simulation)
 	state.breakpoint_match = {}
+	state.debug_dump_requested = false
+	state.debug_dump_reason = .Manual_Export
+	state.automatic_debug_dump_written = false
 }
 
 app_inspector_overlay_view :: proc(state: App_State, mode: game.Build_Mode) -> game.Inspector_Overlay_View {
