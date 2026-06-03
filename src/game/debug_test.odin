@@ -4,6 +4,37 @@ import "core:strings"
 import "core:testing"
 
 @(test)
+test_inspector_overlay_control_registry_routes_static_controls_to_debug_commands :: proc(t: ^testing.T) {
+	testing.expect_value(t, inspector_overlay_control_count(), INSPECTOR_OVERLAY_CONTROL_COUNT)
+
+	pause, pause_ok := inspector_overlay_control_at(0)
+	dump, dump_ok := inspector_overlay_control_by_id(.Export_Debug_Dump)
+	trace_kind, trace_kind_ok := inspector_overlay_control_by_id(.Toggle_Trace_Event_Kind_Filter)
+	break_invariant, break_invariant_ok := inspector_overlay_control_by_id(.Toggle_Break_On_Invariant_Failure)
+
+	testing.expect(t, pause_ok)
+	testing.expect_value(t, pause.id, Inspector_Overlay_Control_Id.Pause)
+	testing.expect_value(t, pause.label, "Pause")
+	testing.expect_value(t, pause.button_row, 0)
+	testing.expect_value(t, pause.button_column, 0)
+	testing.expect_value(t, inspector_overlay_control_command(pause.id).kind, Debug_Command_Kind.Pause)
+
+	testing.expect(t, dump_ok)
+	testing.expect_value(t, dump.button_row, 0)
+	testing.expect_value(t, dump.button_column, 3)
+	testing.expect_value(t, inspector_overlay_control_command(dump.id).kind, Debug_Command_Kind.Export_Debug_Dump)
+
+	testing.expect(t, trace_kind_ok)
+	testing.expect_value(t, inspector_overlay_control_command(trace_kind.id).kind, Debug_Command_Kind.Toggle_Trace_Event_Kind_Filter)
+	testing.expect_value(t, inspector_overlay_control_command(trace_kind.id).event_kind, Event_Kind.Ship_Moved)
+
+	testing.expect(t, break_invariant_ok)
+	testing.expect_value(t, break_invariant.button_row, 2)
+	testing.expect_value(t, break_invariant.button_column, 4)
+	testing.expect_value(t, inspector_overlay_control_command(break_invariant.id).kind, Debug_Command_Kind.Toggle_Break_On_Invariant_Failure)
+}
+
+@(test)
 test_state_snapshot_diff_reports_movement_changes :: proc(t: ^testing.T) {
 	before_state := initial_simulation_state()
 	after_state := step_simulation(before_state, Control_Intent{forward_thrust = true})
@@ -89,7 +120,7 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	before := capture_state_snapshot(scenario.initial_state, Object_ID(1))
 	after := capture_state_snapshot(state, Object_ID(1))
 	diff := diff_state_snapshots(before, after)
-	trace := run_scenario_with_trace(scenario).trace
+	trace := run_scenario_with_trace(scenario, .Test).trace
 	trace_filter := trace_filter_for_object_kind_and_frame_range(Object_ID(1), .Ship_Moved, 0, 1)
 	invariant_report := validate_simulation_invariants(state)
 	breakpoints := default_frame_breakpoints()
@@ -98,7 +129,22 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	record_render_pass_timing(&pass_timings, .World, 250)
 	performance_timing := performance_timing_view_for_frame(.Dev, sim_view, trace.count, 120, 500, pass_timings, 60, 0.016)
 
-	overlay := inspector_overlay_view(.Dev, scenario, sim_view, toggles, true, Object_ID(1), visuals, diff, trace, trace_filter, invariant_report, breakpoints, breakpoint_match, performance_timing)
+	overlay := inspector_overlay_view(Inspector_Overlay_View_Input {
+		build_mode = .Dev,
+		scenario = scenario,
+		simulation = state,
+		render_pass_toggles = toggles,
+		paused = true,
+		selected_object_id = Object_ID(1),
+		ship_debug_visuals = visuals,
+		snapshot_diff = diff,
+		trace_tail = trace,
+		trace_filter = trace_filter,
+		invariant_report = invariant_report,
+		frame_breakpoints = breakpoints,
+		breakpoint_match = breakpoint_match,
+		performance_timing = performance_timing,
+	})
 
 	testing.expect_value(t, overlay.build_mode, Build_Mode.Dev)
 	testing.expect(t, overlay.paused)
@@ -126,7 +172,7 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 
 @(test)
 test_frame_breakpoints_match_event_kind_and_invariant_failure :: proc(t: ^testing.T) {
-	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+	trace := run_scenario_with_trace(player_moves_forward_scenario(), .Test).trace
 
 	breakpoints := default_frame_breakpoints()
 	toggle_frame_breakpoint_event_kind(&breakpoints, .Ship_Moved)

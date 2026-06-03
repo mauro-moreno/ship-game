@@ -16,8 +16,8 @@ test_replay_records_player_moves_forward_and_reproduces_final_state :: proc(t: ^
 	testing.expect(t, strings.contains(text, "player_moves_forward"))
 	testing.expect(t, strings.contains(text, "forward_thrust"))
 
-	replayed_state := replay_simulation(replay, scenario.initial_state)
-	expected_state := run_scenario(scenario)
+	replayed_state := replay_simulation(replay, scenario.initial_state, .Test)
+	expected_state := run_scenario(scenario, .Test)
 	testing.expect_value(t, replayed_state, expected_state)
 }
 

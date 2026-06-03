@@ -1,6 +1,6 @@
 package game
 
-RENDER_PASS_TIMING_COUNT :: 4
+RENDER_PASS_TIMING_COUNT :: RENDER_PASS_COUNT
 
 Entity_Counts :: struct {
 	ships:            int,
@@ -31,15 +31,14 @@ Performance_Timing_View :: struct {
 }
 
 initial_render_pass_timings :: proc() -> Render_Pass_Timings {
-	return Render_Pass_Timings {
-		count = RENDER_PASS_TIMING_COUNT,
-		passes = {
-			Render_Pass_Timing{pass = .Background},
-			Render_Pass_Timing{pass = .World},
-			Render_Pass_Timing{pass = .Debug},
-			Render_Pass_Timing{pass = .Inspector},
-		},
+	timings: Render_Pass_Timings
+	timings.count = render_pass_count()
+	for i in 0..<render_pass_count() {
+		pass, _ := render_pass_at(i)
+		timings.passes[i] = Render_Pass_Timing{pass = pass}
 	}
+
+	return timings
 }
 
 record_render_pass_timing :: proc(timings: ^Render_Pass_Timings, pass: Render_Pass, elapsed_us: u64) {
@@ -49,6 +48,16 @@ record_render_pass_timing :: proc(timings: ^Render_Pass_Timings, pass: Render_Pa
 			return
 		}
 	}
+}
+
+render_pass_timing_elapsed_us :: proc(timing: Performance_Timing_View, pass: Render_Pass) -> u64 {
+	for i in 0..<timing.render_pass_count {
+		if timing.render_passes[i].pass == pass {
+			return timing.render_passes[i].elapsed_us
+		}
+	}
+
+	return 0
 }
 
 performance_timing_collection_enabled :: proc(mode: Build_Mode) -> bool {

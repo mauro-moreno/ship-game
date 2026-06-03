@@ -23,7 +23,7 @@ test_player_moves_forward_scenario_has_reusable_setup :: proc(t: ^testing.T) {
 @(test)
 test_player_moves_forward_scenario_moves_ship_in_facing_direction :: proc(t: ^testing.T) {
 	scenario := player_moves_forward_scenario()
-	final_state := run_scenario(scenario)
+	final_state := run_scenario(scenario, .Test)
 	final_view := simulation_view(final_state)
 
 	testing.expect_value(t, final_view.frame, Frame_Step_Index(1))

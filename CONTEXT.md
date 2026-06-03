@@ -56,6 +56,10 @@ _Avoid_: game loop, update blob
 One deterministic advancement of the Simulation from a prior state plus explicit input/debug commands.
 _Avoid_: tick, update call
 
+**Simulation Run**:
+A deterministic execution of one or more Frame Steps from an initial Simulation state, explicit Build Mode, and a source of Control Intent and recorded Debug Commands. It produces final Simulation state plus Event Trace.
+_Avoid_: scenario runner, replay runner
+
 **Frame Breakpoint**:
 A debug condition that pauses execution at a specific Frame Step or when a specific Event Trace entry, invariant failure, Ship, or Scenario condition appears.
 _Avoid_: watchpoint, conditional pause
@@ -88,6 +92,10 @@ _Avoid_: draw function, renderer blob
 A named slice of the Render Pipeline, such as background, zone, world, effects, HUD, minimap, or debug overlay.
 _Avoid_: draw section, layer
 
+**Render Pass Registry**:
+The single ordered catalog of Render Pass identity, labels, artifact keys, default enabled state, and Build Mode visibility.
+_Avoid_: pass list, toggle list
+
 **Performance Timing**:
 Diagnostic timing information for Frame Steps, Render Pipeline work, Render Passes, entity counts, FPS, and frame time.
 _Avoid_: profiler, benchmark
@@ -100,6 +108,14 @@ _Avoid_: shader effect, GPU magic
 The in-game debug interface for selecting ships, showing hitboxes, viewing AI intent, reading Event Trace entries, toggling Render Passes, and issuing explicit debug commands.
 _Avoid_: dev UI, debug menu
 
+**Inspector Overlay View Assembly**:
+The pure construction step that turns Simulation, Scenario, Trace, Render Pass, Frame Breakpoint, State Snapshot, and Performance Timing facts into one read-only Inspector Overlay View.
+_Avoid_: overlay constructor, draw setup
+
+**Inspector Overlay Control Routing**:
+The single path that normalizes Inspector Overlay text console input, registered panel controls, Scenario Browser actions, and object picking into Debug Commands.
+_Avoid_: button handler chain, input branches
+
 **Debug Command**:
 An explicit command that changes Simulation or debug-tool state during investigation, such as pausing, stepping, selecting a ship, spawning a scenario, or toggling a visualization.
 _Avoid_: hotkey side effect, debug hack
@@ -111,6 +127,14 @@ _Avoid_: raw input, key state
 **Debug Dump**:
 A serialized investigation artifact containing enough Build Mode, Scenario, Replay, Event Trace, State Snapshot, Frame Breakpoint, and Render Pass information to reproduce or discuss a bug.
 _Avoid_: bug report, dump file
+
+**Debug Dump Format**:
+The versioned text representation of a Debug Dump. It serializes investigation context and does not choose file paths, create directories, or write storage.
+_Avoid_: dump writer, exporter
+
+**Debug Dump File Output**:
+The adapter that writes a formatted Debug Dump document to disk. It owns output directory and filename concerns, not serialized content.
+_Avoid_: formatter, serializer
 
 **Game Data Catalog**:
 The centralized source for ship stats, palette values, zone phases, world constants, and invariants that define the game.

@@ -12,11 +12,6 @@ Scenario :: struct {
 	first_intent:    Control_Intent,
 }
 
-Scenario_Run_Result :: struct {
-	final_state: Simulation_State,
-	trace:       Event_Trace,
-}
-
 PLAYER_MOVES_FORWARD_ID :: Scenario_Id("player_moves_forward")
 PLAYER_MOVES_FORWARD_SEED :: Scenario_Seed(1)
 PLAYER_MOVES_FORWARD_INITIAL_HEADING :: f32(0)
@@ -42,32 +37,10 @@ scenario_control_intent :: proc(scenario: Scenario, step_index: Frame_Step_Index
 	return {}
 }
 
-run_scenario :: proc(scenario: Scenario) -> Simulation_State {
-	state := scenario.initial_state
-
-	for step_index in 0..<scenario.step_count {
-		state = step_simulation(state, scenario_control_intent(scenario, Frame_Step_Index(step_index)))
-	}
-
-	return state
+run_scenario :: proc(scenario: Scenario, mode: Build_Mode) -> Simulation_State {
+	return run_simulation(simulation_run_from_scenario(scenario, mode)).final_state
 }
 
-run_scenario_with_trace :: proc(scenario: Scenario) -> Scenario_Run_Result {
-	trace: Event_Trace
-	state := scenario.initial_state
-
-	trace_append(&trace, Event_Trace_Entry {
-		kind = .Scenario_Started,
-		frame = state.frame,
-		scenario_id = scenario.id,
-	})
-
-	for step_index in 0..<scenario.step_count {
-		intent := scenario_control_intent(scenario, Frame_Step_Index(step_index))
-		step_result := step_simulation_with_trace(state, intent, .Test)
-		trace_append_all(&trace, step_result.trace)
-		state = step_result.state
-	}
-
-	return Scenario_Run_Result{final_state = state, trace = trace}
+run_scenario_with_trace :: proc(scenario: Scenario, mode: Build_Mode) -> Simulation_Run_Result {
+	return run_simulation(simulation_run_from_scenario(scenario, mode))
 }

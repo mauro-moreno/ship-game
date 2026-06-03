@@ -30,42 +30,21 @@ render_frame :: proc(overlay_view: game.Inspector_Overlay_View, console_text, co
 
 	rl.ClearBackground(rl.BLACK)
 
-	if game.render_pass_enabled(debug_view.pass_toggles, .Background) {
-		pass_start := f64(0)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			pass_start = timing_now_seconds()
+	for pass_index in 0..<game.render_pass_count() {
+		pass, ok := game.render_pass_at(pass_index)
+		if !ok || !game.render_pass_available_in_build_mode(pass, overlay_view.build_mode) || !game.render_pass_enabled(debug_view.pass_toggles, pass) {
+			continue
 		}
-		draw_background_pass(debug_view.camera)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			game.record_render_pass_timing(&timing.pass_timings, .Background, elapsed_us_since(pass_start))
-		}
-	}
-	if game.render_pass_enabled(debug_view.pass_toggles, .World) {
-		pass_start := f64(0)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			pass_start = timing_now_seconds()
-		}
-		draw_world_pass(debug_view)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			game.record_render_pass_timing(&timing.pass_timings, .World, elapsed_us_since(pass_start))
-		}
-	}
-	if game.render_pass_enabled(debug_view.pass_toggles, .Debug) {
-		pass_start := f64(0)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			pass_start = timing_now_seconds()
-		}
-		draw_debug_pass(debug_view)
-		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
-			game.record_render_pass_timing(&timing.pass_timings, .Debug, elapsed_us_since(pass_start))
-		}
-	}
 
-	when game.CONFIGURED_BUILD_MODE_NAME == "dev" {
-		if overlay_view.build_mode == .Dev && game.render_pass_enabled(debug_view.pass_toggles, .Inspector) {
-			pass_start := timing_now_seconds()
-			draw_inspector_overlay(overlay_view, console_text, console_feedback)
-			game.record_render_pass_timing(&timing.pass_timings, .Inspector, elapsed_us_since(pass_start))
+		pass_start := f64(0)
+		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
+			pass_start = timing_now_seconds()
+		}
+
+		draw_registered_render_pass(pass, overlay_view, console_text, console_feedback)
+
+		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
+			game.record_render_pass_timing(&timing.pass_timings, pass, elapsed_us_since(pass_start))
 		}
 	}
 
@@ -76,6 +55,20 @@ render_frame :: proc(overlay_view: game.Inspector_Overlay_View, console_text, co
 	}
 
 	return timing
+}
+
+draw_registered_render_pass :: proc(pass: game.Render_Pass, overlay_view: game.Inspector_Overlay_View, console_text, console_feedback: string) {
+	debug_view := overlay_view.render_debug
+	switch pass {
+	case .Background:
+		draw_background_pass(debug_view.camera)
+	case .World:
+		draw_world_pass(debug_view)
+	case .Debug:
+		draw_debug_pass(debug_view)
+	case .Inspector:
+		draw_inspector_overlay(overlay_view, console_text, console_feedback)
+	}
 }
 
 draw_background_pass :: proc(camera: game.Camera_State) {

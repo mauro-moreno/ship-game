@@ -20,15 +20,15 @@ handle_dev_render_pass_toggles :: proc(mode: game.Build_Mode, toggles: ^game.Ren
 	}
 
 	if rl.IsKeyPressed(.ONE) {
-		game.toggle_render_pass(toggles, .Background)
+		game.toggle_render_pass_by_index(toggles, 0)
 	}
 	if rl.IsKeyPressed(.TWO) {
-		game.toggle_render_pass(toggles, .World)
+		game.toggle_render_pass_by_index(toggles, 1)
 	}
 	if rl.IsKeyPressed(.THREE) {
-		game.toggle_render_pass(toggles, .Debug)
+		game.toggle_render_pass_by_index(toggles, 2)
 	}
 	if rl.IsKeyPressed(.FOUR) {
-		game.toggle_render_pass(toggles, .Inspector)
+		game.toggle_render_pass_by_index(toggles, 3)
 	}
 }

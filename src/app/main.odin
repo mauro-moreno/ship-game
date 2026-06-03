@@ -16,13 +16,7 @@ main :: proc() {
 		intent := read_control_intent()
 		handle_dev_render_pass_toggles(mode, &app_state.pass_toggles)
 		pre_step_overlay := app_inspector_overlay_view(app_state, mode)
-		command := update_debug_text_console(&app_state)
-		if command.kind == .None {
-			command = read_inspector_overlay_command(pre_step_overlay)
-		}
-		if command.kind == .None {
-			command = read_object_picking_command(pre_step_overlay)
-		}
+		command := read_inspector_overlay_control_command(&app_state, pre_step_overlay)
 
 		simulation_start := f64(0)
 		when game.CONFIGURED_BUILD_MODE_NAME != "release" {

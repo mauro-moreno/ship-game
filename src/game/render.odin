@@ -2,6 +2,7 @@ package game
 
 DEFAULT_CAMERA_ZOOM :: f32(1)
 DEFAULT_WORLD_PIXELS_PER_UNIT :: f32(32)
+RENDER_PASS_COUNT :: 4
 
 Render_Pass :: enum {
 	Background,
@@ -10,11 +11,26 @@ Render_Pass :: enum {
 	Inspector,
 }
 
+Render_Pass_Registration :: struct {
+	pass:            Render_Pass,
+	label:           string,
+	short_label:     string,
+	artifact_key:    string,
+	default_enabled: bool,
+	dev_only:        bool,
+}
+
+render_pass_registry :: proc() -> [RENDER_PASS_COUNT]Render_Pass_Registration {
+	return [RENDER_PASS_COUNT]Render_Pass_Registration {
+		Render_Pass_Registration{pass = .Background, label = "Background", short_label = "bg", artifact_key = "background", default_enabled = true},
+		Render_Pass_Registration{pass = .World, label = "World", short_label = "world", artifact_key = "world", default_enabled = true},
+		Render_Pass_Registration{pass = .Debug, label = "Debug", short_label = "debug", artifact_key = "debug", default_enabled = true},
+		Render_Pass_Registration{pass = .Inspector, label = "Inspector", short_label = "inspector", artifact_key = "inspector", default_enabled = true, dev_only = true},
+	}
+}
+
 Render_Pass_Toggles :: struct {
-	background: bool,
-	world:      bool,
-	debug:     bool,
-	inspector: bool,
+	enabled: [RENDER_PASS_COUNT]bool,
 }
 
 Ship_Debug_Visual_Toggles :: struct {
@@ -53,12 +69,13 @@ Render_Debug_View :: struct {
 }
 
 default_render_pass_toggles :: proc() -> Render_Pass_Toggles {
-	return Render_Pass_Toggles {
-		background = true,
-		world = true,
-		debug = true,
-		inspector = true,
+	toggles: Render_Pass_Toggles
+	registry := render_pass_registry()
+	for i in 0..<RENDER_PASS_COUNT {
+		toggles.enabled[i] = registry[i].default_enabled
 	}
+
+	return toggles
 }
 
 default_ship_debug_visual_toggles :: proc() -> Ship_Debug_Visual_Toggles {
@@ -69,35 +86,111 @@ default_ship_debug_visual_toggles :: proc() -> Ship_Debug_Visual_Toggles {
 }
 
 render_pass_enabled :: proc(toggles: Render_Pass_Toggles, pass: Render_Pass) -> bool {
-	switch pass {
-	case .Background:
-		return toggles.background
-	case .World:
-		return toggles.world
-	case .Debug:
-		return toggles.debug
-	case .Inspector:
-		return toggles.inspector
+	if index, ok := render_pass_index(pass); ok {
+		return toggles.enabled[index]
 	}
 
 	return false
 }
 
 set_render_pass_enabled :: proc(toggles: ^Render_Pass_Toggles, pass: Render_Pass, enabled: bool) {
-	switch pass {
-	case .Background:
-		toggles.background = enabled
-	case .World:
-		toggles.world = enabled
-	case .Debug:
-		toggles.debug = enabled
-	case .Inspector:
-		toggles.inspector = enabled
+	if index, ok := render_pass_index(pass); ok {
+		toggles.enabled[index] = enabled
 	}
 }
 
 toggle_render_pass :: proc(toggles: ^Render_Pass_Toggles, pass: Render_Pass) {
 	set_render_pass_enabled(toggles, pass, !render_pass_enabled(toggles^, pass))
+}
+
+toggle_render_pass_by_index :: proc(toggles: ^Render_Pass_Toggles, index: int) {
+	if pass, ok := render_pass_at(index); ok {
+		toggle_render_pass(toggles, pass)
+	}
+}
+
+render_pass_count :: proc() -> int {
+	return RENDER_PASS_COUNT
+}
+
+render_pass_at :: proc(index: int) -> (Render_Pass, bool) {
+	if registration, ok := render_pass_registration_at(index); ok {
+		return registration.pass, true
+	}
+
+	return .Background, false
+}
+
+render_pass_registration_at :: proc(index: int) -> (Render_Pass_Registration, bool) {
+	if index < 0 || index >= RENDER_PASS_COUNT {
+		return {}, false
+	}
+
+	registry := render_pass_registry()
+	return registry[index], true
+}
+
+render_pass_registration :: proc(pass: Render_Pass) -> (Render_Pass_Registration, bool) {
+	registry := render_pass_registry()
+	for i in 0..<RENDER_PASS_COUNT {
+		registration := registry[i]
+		if registration.pass == pass {
+			return registration, true
+		}
+	}
+
+	return {}, false
+}
+
+render_pass_index :: proc(pass: Render_Pass) -> (int, bool) {
+	registry := render_pass_registry()
+	for i in 0..<RENDER_PASS_COUNT {
+		if registry[i].pass == pass {
+			return i, true
+		}
+	}
+
+	return 0, false
+}
+
+render_pass_label :: proc(pass: Render_Pass) -> string {
+	if registration, ok := render_pass_registration(pass); ok {
+		return registration.label
+	}
+
+	return ""
+}
+
+render_pass_short_label :: proc(pass: Render_Pass) -> string {
+	if registration, ok := render_pass_registration(pass); ok {
+		return registration.short_label
+	}
+
+	return ""
+}
+
+render_pass_artifact_key :: proc(pass: Render_Pass) -> string {
+	if registration, ok := render_pass_registration(pass); ok {
+		return registration.artifact_key
+	}
+
+	return ""
+}
+
+render_pass_default_enabled :: proc(pass: Render_Pass) -> bool {
+	if registration, ok := render_pass_registration(pass); ok {
+		return registration.default_enabled
+	}
+
+	return false
+}
+
+render_pass_available_in_build_mode :: proc(pass: Render_Pass, mode: Build_Mode) -> bool {
+	if registration, ok := render_pass_registration(pass); ok {
+		return !registration.dev_only || mode == .Dev
+	}
+
+	return false
 }
 
 toggle_ship_debug_hitbox :: proc(toggles: ^Ship_Debug_Visual_Toggles) {

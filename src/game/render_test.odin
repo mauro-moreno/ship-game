@@ -3,6 +3,31 @@ package game
 import "core:testing"
 
 @(test)
+test_render_pass_registry_defines_order_labels_defaults_and_build_visibility :: proc(t: ^testing.T) {
+	testing.expect_value(t, render_pass_count(), RENDER_PASS_COUNT)
+
+	background, background_ok := render_pass_at(0)
+	world, world_ok := render_pass_at(1)
+	debug, debug_ok := render_pass_at(2)
+	inspector, inspector_ok := render_pass_at(3)
+
+	testing.expect(t, background_ok)
+	testing.expect(t, world_ok)
+	testing.expect(t, debug_ok)
+	testing.expect(t, inspector_ok)
+	testing.expect_value(t, background, Render_Pass.Background)
+	testing.expect_value(t, world, Render_Pass.World)
+	testing.expect_value(t, debug, Render_Pass.Debug)
+	testing.expect_value(t, inspector, Render_Pass.Inspector)
+	testing.expect_value(t, render_pass_label(.Background), "Background")
+	testing.expect_value(t, render_pass_short_label(.Background), "bg")
+	testing.expect_value(t, render_pass_artifact_key(.Inspector), "inspector")
+	testing.expect(t, render_pass_default_enabled(.Debug))
+	testing.expect(t, render_pass_available_in_build_mode(.Inspector, .Dev))
+	testing.expect(t, !render_pass_available_in_build_mode(.Inspector, .Release))
+}
+
+@(test)
 test_camera_follows_player_ship_without_smoothing :: proc(t: ^testing.T) {
 	state := initial_simulation_state()
 	state.ship.position = Vec2{x = 12.5, y = -3.25}
@@ -24,12 +49,13 @@ test_camera_follows_player_ship_without_smoothing :: proc(t: ^testing.T) {
 test_initial_render_passes_are_named_enabled_and_toggleable :: proc(t: ^testing.T) {
 	toggles := default_render_pass_toggles()
 
-	testing.expect(t, render_pass_enabled(toggles, .Background))
-	testing.expect(t, render_pass_enabled(toggles, .World))
-	testing.expect(t, render_pass_enabled(toggles, .Debug))
-	testing.expect(t, render_pass_enabled(toggles, .Inspector))
+	for i in 0..<render_pass_count() {
+		pass, ok := render_pass_at(i)
+		testing.expect(t, ok)
+		testing.expect_value(t, render_pass_enabled(toggles, pass), render_pass_default_enabled(pass))
+	}
 
-	toggle_render_pass(&toggles, .Debug)
+	toggle_render_pass_by_index(&toggles, 2)
 	testing.expect(t, !render_pass_enabled(toggles, .Debug))
 
 	toggle_render_pass(&toggles, .Debug)

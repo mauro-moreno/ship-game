@@ -50,14 +50,8 @@ replay_record_debug_command :: proc(replay: ^Replay_Stream, frame: Frame_Step_In
 	replay.debug_command_count += 1
 }
 
-replay_simulation :: proc(replay: Replay_Stream, initial_state: Simulation_State) -> Simulation_State {
-	state := initial_state
-
-	for i in 0..<replay.intent_count {
-		state = step_simulation(state, replay.intents[i])
-	}
-
-	return state
+replay_simulation :: proc(replay: Replay_Stream, initial_state: Simulation_State, mode: Build_Mode) -> Simulation_State {
+	return run_simulation(simulation_run_from_replay(replay, initial_state, mode)).final_state
 }
 
 replay_to_text :: proc(replay: Replay_Stream) -> string {

@@ -4,7 +4,7 @@ import "core:testing"
 
 @(test)
 test_player_moves_forward_emits_compact_event_trace :: proc(t: ^testing.T) {
-	result := run_scenario_with_trace(player_moves_forward_scenario())
+	result := run_scenario_with_trace(player_moves_forward_scenario(), .Test)
 	trace := result.trace
 
 	testing.expect_value(t, trace.count, 3)
@@ -36,7 +36,7 @@ test_frame_step_trace_reports_invariant_failure :: proc(t: ^testing.T) {
 
 @(test)
 test_trace_can_be_filtered_by_selected_object_id :: proc(t: ^testing.T) {
-	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+	trace := run_scenario_with_trace(player_moves_forward_scenario(), .Test).trace
 	selected := trace_filter_by_object(trace, Object_ID(1))
 	missing := trace_filter_by_object(trace, Object_ID(2))
 
@@ -50,7 +50,7 @@ test_trace_can_be_filtered_by_selected_object_id :: proc(t: ^testing.T) {
 
 @(test)
 test_trace_filter_supports_frame_range_object_id_and_event_kind :: proc(t: ^testing.T) {
-	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+	trace := run_scenario_with_trace(player_moves_forward_scenario(), .Test).trace
 	filter := trace_filter_for_object_kind_and_frame_range(Object_ID(1), .Ship_Moved, Frame_Step_Index(1), Frame_Step_Index(1))
 
 	filtered := trace_filter(trace, filter)

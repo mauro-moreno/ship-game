@@ -166,24 +166,22 @@ start_scenario :: proc(state: ^App_State, scenario: game.Scenario, paused: bool)
 }
 
 app_inspector_overlay_view :: proc(state: App_State, mode: game.Build_Mode) -> game.Inspector_Overlay_View {
-	view := game.simulation_view(state.simulation)
-
-	return game.inspector_overlay_view(
-		mode,
-		state.scenario,
-		view,
-		state.pass_toggles,
-		state.paused,
-		state.selected_object_id,
-		state.ship_debug_visuals,
-		state.last_snapshot_diff,
-		state.trace_tail,
-		state.trace_filter,
-		state.invariant_report,
-		state.frame_breakpoints,
-		state.breakpoint_match,
-		state.performance_timing,
-	)
+	return game.inspector_overlay_view(game.Inspector_Overlay_View_Input {
+		build_mode = mode,
+		scenario = state.scenario,
+		simulation = state.simulation,
+		render_pass_toggles = state.pass_toggles,
+		paused = state.paused,
+		selected_object_id = state.selected_object_id,
+		ship_debug_visuals = state.ship_debug_visuals,
+		snapshot_diff = state.last_snapshot_diff,
+		trace_tail = state.trace_tail,
+		trace_filter = state.trace_filter,
+		invariant_report = state.invariant_report,
+		frame_breakpoints = state.frame_breakpoints,
+		breakpoint_match = state.breakpoint_match,
+		performance_timing = state.performance_timing,
+	})
 }
 
 debug_console_text :: proc(state: ^App_State) -> string {

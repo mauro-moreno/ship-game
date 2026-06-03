@@ -7,8 +7,10 @@ import "core:os"
 @(test)
 test_debug_dump_text_includes_minimum_portable_investigation_context :: proc(t: ^testing.T) {
 	ctx := debug_dump_test_context(.Manual_Export)
-	text := debug_dump_to_text(ctx)
+	document := format_debug_dump(ctx)
+	text := document.text
 
+	testing.expect_value(t, document.version, DEBUG_DUMP_FORMAT_VERSION)
 	testing.expect(t, strings.contains(text, DEBUG_DUMP_FORMAT_VERSION))
 	testing.expect(t, strings.contains(text, "\"build_mode\":\"Dev\""))
 	testing.expect(t, strings.contains(text, "\"scenario\":\"player_moves_forward\""))
@@ -29,7 +31,7 @@ test_debug_dump_text_includes_minimum_portable_investigation_context :: proc(t: 
 
 debug_dump_test_context :: proc(reason: Debug_Dump_Reason) -> Debug_Dump_Context {
 	scenario := player_moves_forward_scenario()
-	result := run_scenario_with_trace(scenario)
+	result := run_scenario_with_trace(scenario, .Test)
 	view := simulation_view(result.final_state)
 	pass_timings := initial_render_pass_timings()
 	record_render_pass_timing(&pass_timings, .World, 240)
@@ -40,22 +42,23 @@ debug_dump_test_context :: proc(reason: Debug_Dump_Reason) -> Debug_Dump_Context
 	)
 	breakpoints := default_frame_breakpoints()
 	toggle_frame_breakpoint_event_kind(&breakpoints, .Ship_Moved)
-	overlay := inspector_overlay_view(
-		.Dev,
-		scenario,
-		view,
-		default_render_pass_toggles(),
-		true,
-		result.final_state.ship.id,
-		default_ship_debug_visual_toggles(),
-		diff,
-		result.trace,
-		trace_filter_for_object(result.final_state.ship.id),
-		validate_simulation_invariants(result.final_state),
-		breakpoints,
-		frame_breakpoint_match(breakpoints, result.trace, validate_simulation_invariants(result.final_state)),
-		performance_timing,
-	)
+	invariant_report := validate_simulation_invariants(result.final_state)
+	overlay := inspector_overlay_view(Inspector_Overlay_View_Input {
+		build_mode = .Dev,
+		scenario = scenario,
+		simulation = result.final_state,
+		render_pass_toggles = default_render_pass_toggles(),
+		paused = true,
+		selected_object_id = result.final_state.ship.id,
+		ship_debug_visuals = default_ship_debug_visual_toggles(),
+		snapshot_diff = diff,
+		trace_tail = result.trace,
+		trace_filter = trace_filter_for_object(result.final_state.ship.id),
+		invariant_report = invariant_report,
+		frame_breakpoints = breakpoints,
+		breakpoint_match = frame_breakpoint_match(breakpoints, result.trace, invariant_report),
+		performance_timing = performance_timing,
+	})
 	replay := replay_from_scenario(scenario)
 
 	return debug_dump_context_from_overlay(reason, overlay, replay)
@@ -70,10 +73,13 @@ test_automatic_debug_dump_policy_allows_dev_and_test_failures_but_not_release ::
 }
 
 @(test)
-test_debug_dump_export_writes_versioned_text_file :: proc(t: ^testing.T) {
-	ctx := debug_dump_test_context(.Manual_Export)
+test_debug_dump_file_output_writes_supplied_formatted_document :: proc(t: ^testing.T) {
+	document := Debug_Dump_Document {
+		version = DEBUG_DUMP_FORMAT_VERSION,
+		text = "\"version\":\"ship-debug-dump-v1\",\"reason\":\"Manual_Export\"",
+	}
 
-	result := write_debug_dump(ctx)
+	result := write_debug_dump_document(document, "debug-dump-file-output-test.txt", default_debug_dump_file_output())
 
 	testing.expect(t, result.ok)
 	testing.expect(t, strings.contains(result.path, DEBUG_DUMP_OUTPUT_DIRECTORY))
@@ -82,14 +88,13 @@ test_debug_dump_export_writes_versioned_text_file :: proc(t: ^testing.T) {
 	data, read_ok := os.read_entire_file_from_filename(result.path, context.temp_allocator)
 	testing.expect(t, read_ok)
 	text := string(data)
-	testing.expect(t, strings.contains(text, DEBUG_DUMP_FORMAT_VERSION))
-	testing.expect(t, strings.contains(text, "\"reason\":\"Manual_Export\""))
+	testing.expect_value(t, text, document.text)
 }
 
 @(test)
 test_scenario_failure_debug_dump_writes_test_failure_context :: proc(t: ^testing.T) {
 	scenario := player_moves_forward_scenario()
-	run := run_scenario_with_trace(scenario)
+	run := run_scenario_with_trace(scenario, .Test)
 
 	result := write_scenario_failure_debug_dump(scenario, run)
 
