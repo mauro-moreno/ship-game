@@ -56,6 +56,11 @@ Invariant_Report :: struct {
 	failure_count: int,
 }
 
+Simulation_Step_Result :: struct {
+	state: Simulation_State,
+	trace: Event_Trace,
+}
+
 DEFAULT_SHIP_MOVEMENT :: Ship_Movement {
 	thrust_acceleration = 0.25,
 	reverse_acceleration = 0.12,
@@ -128,6 +133,38 @@ step_simulation :: proc(state: Simulation_State, intent: Control_Intent) -> Simu
 	next.ship.velocity.y *= next.ship.movement.damping
 
 	return next
+}
+
+step_simulation_with_trace :: proc(state: Simulation_State, intent: Control_Intent, mode: Build_Mode) -> Simulation_Step_Result {
+	trace: Event_Trace
+
+	if continuous_invariants_enabled(mode) {
+		report := validate_simulation_invariants(state)
+		if !report.ok {
+			trace_append(&trace, Event_Trace_Entry {
+				kind = .Invariant_Failed,
+				frame = state.frame,
+				object_id = state.ship.id,
+			})
+			return Simulation_Step_Result{state = state, trace = trace}
+		}
+	}
+
+	trace_append(&trace, Event_Trace_Entry {
+		kind = .Control_Intent_Applied,
+		frame = state.frame,
+		object_id = state.ship.id,
+		intent = intent,
+	})
+
+	next := step_simulation(state, intent)
+	trace_append(&trace, Event_Trace_Entry {
+		kind = .Ship_Moved,
+		frame = next.frame,
+		object_id = next.ship.id,
+	})
+
+	return Simulation_Step_Result{state = next, trace = trace}
 }
 
 vec2_length :: proc(v: Vec2) -> f32 {
