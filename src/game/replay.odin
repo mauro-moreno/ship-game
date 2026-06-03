@@ -4,13 +4,21 @@ import "core:fmt"
 
 REPLAY_FORMAT_VERSION :: "ship-replay-v1"
 MAX_REPLAY_INTENTS :: 32
+MAX_REPLAY_DEBUG_COMMANDS :: 32
+
+Replay_Debug_Command_Record :: struct {
+	frame:   Frame_Step_Index,
+	command: Debug_Command,
+}
 
 Replay_Stream :: struct {
-	format_version: string,
-	scenario_id:    Scenario_Id,
-	seed:           Scenario_Seed,
-	intents:        [MAX_REPLAY_INTENTS]Control_Intent,
-	intent_count:   int,
+	format_version:      string,
+	scenario_id:         Scenario_Id,
+	seed:                Scenario_Seed,
+	intents:             [MAX_REPLAY_INTENTS]Control_Intent,
+	intent_count:        int,
+	debug_commands:      [MAX_REPLAY_DEBUG_COMMANDS]Replay_Debug_Command_Record,
+	debug_command_count: int,
 }
 
 replay_from_scenario :: proc(scenario: Scenario) -> Replay_Stream {
@@ -29,6 +37,19 @@ replay_from_scenario :: proc(scenario: Scenario) -> Replay_Stream {
 	return replay
 }
 
+replay_record_debug_command :: proc(replay: ^Replay_Stream, frame: Frame_Step_Index, command: Debug_Command) {
+	if command.kind == .None {
+		return
+	}
+
+	assert(replay.debug_command_count < MAX_REPLAY_DEBUG_COMMANDS)
+	replay.debug_commands[replay.debug_command_count] = Replay_Debug_Command_Record {
+		frame = frame,
+		command = command,
+	}
+	replay.debug_command_count += 1
+}
+
 replay_simulation :: proc(replay: Replay_Stream, initial_state: Simulation_State) -> Simulation_State {
 	state := initial_state
 
@@ -45,7 +66,7 @@ replay_to_text :: proc(replay: Replay_Stream) -> string {
 		first_intent = replay.intents[0]
 	}
 
-	return fmt.tprintf(
+	text := fmt.tprintf(
 		"{\"version\":\"%s\",\"scenario\":\"%s\",\"seed\":%v}\n{\"frame\":0,\"forward_thrust\":%v,\"backward_thrust\":%v,\"turn_left\":%v,\"turn_right\":%v}",
 		replay.format_version,
 		string(replay.scenario_id),
@@ -55,4 +76,19 @@ replay_to_text :: proc(replay: Replay_Stream) -> string {
 		first_intent.turn_left,
 		first_intent.turn_right,
 	)
+
+	if replay.debug_command_count > 0 {
+		first_command := replay.debug_commands[0]
+		text = fmt.tprintf(
+			"%s\n{\"frame\":%v,\"debug_command\":\"%v\",\"object_id\":%v,\"scenario\":\"%s\",\"event_kind\":\"%v\"}",
+			text,
+			u64(first_command.frame),
+			first_command.command.kind,
+			u32(first_command.command.object_id),
+			string(first_command.command.scenario_id),
+			first_command.command.event_kind,
+		)
+	}
+
+	return text
 }

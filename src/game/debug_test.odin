@@ -1,5 +1,6 @@
 package game
 
+import "core:strings"
 import "core:testing"
 
 @(test)
@@ -39,6 +40,7 @@ test_debug_commands_are_explicit_simulation_mutation_requests :: proc(t: ^testin
 	toggle_trace_kind := debug_toggle_trace_event_kind_filter_command(.Ship_Moved)
 	toggle_break_event := debug_toggle_break_on_event_kind_command(.Ship_Moved)
 	toggle_break_invariant := debug_toggle_break_on_invariant_failure_command()
+	export_dump := debug_export_dump_command()
 
 	testing.expect_value(t, pause.kind, Debug_Command_Kind.Pause)
 	testing.expect_value(t, resume.kind, Debug_Command_Kind.Resume)
@@ -58,6 +60,7 @@ test_debug_commands_are_explicit_simulation_mutation_requests :: proc(t: ^testin
 	testing.expect_value(t, toggle_break_event.kind, Debug_Command_Kind.Toggle_Break_On_Event_Kind)
 	testing.expect_value(t, toggle_break_event.event_kind, Event_Kind.Ship_Moved)
 	testing.expect_value(t, toggle_break_invariant.kind, Debug_Command_Kind.Toggle_Break_On_Invariant_Failure)
+	testing.expect_value(t, export_dump.kind, Debug_Command_Kind.Export_Debug_Dump)
 	testing.expect_value(t, NO_DEBUG_COMMAND.kind, Debug_Command_Kind.None)
 }
 
@@ -133,4 +136,55 @@ test_frame_breakpoints_match_event_kind_and_invariant_failure :: proc(t: ^testin
 	testing.expect(t, invariant_match.matched)
 	testing.expect_value(t, invariant_match.reason, Frame_Breakpoint_Reason.Invariant_Failure)
 	testing.expect_value(t, invariant_match.invariant_report.failure_count, 1)
+}
+
+@(test)
+test_debug_text_commands_normalize_to_debug_commands :: proc(t: ^testing.T) {
+	run := parse_debug_text_command("run player_moves_forward")
+	restart := parse_debug_text_command("restart player_moves_forward")
+	select_object := parse_debug_text_command("select 1")
+	break_event := parse_debug_text_command("break event ship_moved")
+	break_invariant := parse_debug_text_command("break invariant")
+	dump := parse_debug_text_command("dump")
+
+	testing.expect(t, run.ok)
+	testing.expect_value(t, run.command.kind, Debug_Command_Kind.Run_Scenario)
+	testing.expect_value(t, run.command.scenario_id, PLAYER_MOVES_FORWARD_ID)
+
+	testing.expect(t, restart.ok)
+	testing.expect_value(t, restart.command.kind, Debug_Command_Kind.Restart_Scenario)
+	testing.expect_value(t, restart.command.scenario_id, PLAYER_MOVES_FORWARD_ID)
+
+	testing.expect(t, select_object.ok)
+	testing.expect_value(t, select_object.command.kind, Debug_Command_Kind.Select_Object)
+	testing.expect_value(t, select_object.command.object_id, Object_ID(1))
+
+	testing.expect(t, break_event.ok)
+	testing.expect_value(t, break_event.command.kind, Debug_Command_Kind.Toggle_Break_On_Event_Kind)
+	testing.expect_value(t, break_event.command.event_kind, Event_Kind.Ship_Moved)
+
+	testing.expect(t, break_invariant.ok)
+	testing.expect_value(t, break_invariant.command.kind, Debug_Command_Kind.Toggle_Break_On_Invariant_Failure)
+
+	testing.expect(t, dump.ok)
+	testing.expect_value(t, dump.command.kind, Debug_Command_Kind.Export_Debug_Dump)
+}
+
+@(test)
+test_invalid_debug_text_command_is_readable_noop :: proc(t: ^testing.T) {
+	invalid := parse_debug_text_command("warp 100")
+	bad_scenario := parse_debug_text_command("restart missing_scenario")
+	bad_object := parse_debug_text_command("select no")
+
+	testing.expect(t, !invalid.ok)
+	testing.expect_value(t, invalid.command.kind, Debug_Command_Kind.None)
+	testing.expect(t, strings.contains(invalid.feedback, "Unknown"))
+
+	testing.expect(t, !bad_scenario.ok)
+	testing.expect_value(t, bad_scenario.command.kind, Debug_Command_Kind.None)
+	testing.expect(t, strings.contains(bad_scenario.feedback, "scenario"))
+
+	testing.expect(t, !bad_object.ok)
+	testing.expect_value(t, bad_object.command.kind, Debug_Command_Kind.None)
+	testing.expect(t, strings.contains(bad_object.feedback, "Object ID"))
 }

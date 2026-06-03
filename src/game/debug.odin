@@ -1,5 +1,8 @@
 package game
 
+import "core:strconv"
+import "core:strings"
+
 MAX_SCENARIO_BROWSER_ITEMS :: 4
 
 Debug_Artifacts :: struct {}
@@ -19,6 +22,7 @@ Debug_Command_Kind :: enum {
 	Toggle_Trace_Event_Kind_Filter,
 	Toggle_Break_On_Event_Kind,
 	Toggle_Break_On_Invariant_Failure,
+	Export_Debug_Dump,
 }
 
 Debug_Command :: struct {
@@ -26,6 +30,12 @@ Debug_Command :: struct {
 	scenario_id: Scenario_Id,
 	object_id:   Object_ID,
 	event_kind:  Event_Kind,
+}
+
+Debug_Text_Command_Result :: struct {
+	ok:       bool,
+	command:  Debug_Command,
+	feedback: string,
 }
 
 Frame_Breakpoint_Reason :: enum {
@@ -128,6 +138,119 @@ debug_toggle_break_on_event_kind_command :: proc(kind: Event_Kind) -> Debug_Comm
 
 debug_toggle_break_on_invariant_failure_command :: proc() -> Debug_Command {
 	return Debug_Command{kind = .Toggle_Break_On_Invariant_Failure}
+}
+
+debug_export_dump_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Export_Debug_Dump}
+}
+
+parse_debug_text_command :: proc(input: string) -> Debug_Text_Command_Result {
+	trimmed := strings.trim_space(input)
+	if len(trimmed) == 0 {
+		return debug_text_error("Empty command")
+	}
+
+	parts := strings.fields(trimmed)
+	defer delete(parts)
+
+	if len(parts) == 0 {
+		return debug_text_error("Empty command")
+	}
+
+	verb := parts[0]
+
+	if strings.equal_fold(verb, "run") || strings.equal_fold(verb, "scenario") {
+		if len(parts) != 2 {
+			return debug_text_error("Usage: run player_moves_forward")
+		}
+		if scenario_id, ok := scenario_id_from_text(parts[1]); ok {
+			return debug_text_ok(debug_run_scenario_command(scenario_id), "Running scenario")
+		}
+		return debug_text_error("Unknown scenario")
+	}
+
+	if strings.equal_fold(verb, "restart") {
+		if len(parts) != 2 {
+			return debug_text_error("Usage: restart player_moves_forward")
+		}
+		if scenario_id, ok := scenario_id_from_text(parts[1]); ok {
+			return debug_text_ok(debug_restart_scenario_command(scenario_id), "Restarting scenario")
+		}
+		return debug_text_error("Unknown scenario")
+	}
+
+	if strings.equal_fold(verb, "select") {
+		if len(parts) != 2 {
+			return debug_text_error("Usage: select <Object ID>")
+		}
+		object_id, ok := strconv.parse_uint(parts[1])
+		if !ok || object_id == 0 {
+			return debug_text_error("Invalid Object ID")
+		}
+		return debug_text_ok(debug_select_object_command(Object_ID(object_id)), "Selected Object ID")
+	}
+
+	if strings.equal_fold(verb, "break") {
+		if len(parts) == 2 && strings.equal_fold(parts[1], "invariant") {
+			return debug_text_ok(debug_toggle_break_on_invariant_failure_command(), "Toggled invariant breakpoint")
+		}
+		if len(parts) == 3 && strings.equal_fold(parts[1], "event") {
+			if kind, ok := event_kind_from_text(parts[2]); ok {
+				return debug_text_ok(debug_toggle_break_on_event_kind_command(kind), "Toggled event breakpoint")
+			}
+			return debug_text_error("Unknown event kind")
+		}
+		return debug_text_error("Usage: break event ship_moved | break invariant")
+	}
+
+	if strings.equal_fold(verb, "dump") {
+		if len(parts) != 1 {
+			return debug_text_error("Usage: dump")
+		}
+		return debug_text_ok(debug_export_dump_command(), "Debug Dump export requested")
+	}
+
+	return debug_text_error("Unknown command")
+}
+
+debug_text_ok :: proc(command: Debug_Command, feedback: string) -> Debug_Text_Command_Result {
+	return Debug_Text_Command_Result {
+		ok = true,
+		command = command,
+		feedback = feedback,
+	}
+}
+
+debug_text_error :: proc(feedback: string) -> Debug_Text_Command_Result {
+	return Debug_Text_Command_Result {
+		command = NO_DEBUG_COMMAND,
+		feedback = feedback,
+	}
+}
+
+scenario_id_from_text :: proc(text: string) -> (Scenario_Id, bool) {
+	if strings.equal_fold(text, string(PLAYER_MOVES_FORWARD_ID)) {
+		return PLAYER_MOVES_FORWARD_ID, true
+	}
+
+	return "", false
+}
+
+event_kind_from_text :: proc(text: string) -> (Event_Kind, bool) {
+	if strings.equal_fold(text, "scenario_started") {
+		return .Scenario_Started, true
+	}
+	if strings.equal_fold(text, "control_intent_applied") {
+		return .Control_Intent_Applied, true
+	}
+	if strings.equal_fold(text, "ship_moved") {
+		return .Ship_Moved, true
+	}
+	if strings.equal_fold(text, "invariant_failed") {
+		return .Invariant_Failed, true
+	}
+
+	return .Scenario_Started, false
 }
 
 scenario_browser_view :: proc(active_id: Scenario_Id) -> Scenario_Browser_View {

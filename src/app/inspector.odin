@@ -8,12 +8,44 @@ import rl "vendor:raylib"
 INSPECTOR_X :: f32(16)
 INSPECTOR_Y :: f32(54)
 INSPECTOR_WIDTH :: f32(760)
-INSPECTOR_HEIGHT :: f32(420)
+INSPECTOR_HEIGHT :: f32(500)
 INSPECTOR_PADDING :: f32(12)
 INSPECTOR_ROW_HEIGHT :: f32(26)
 INSPECTOR_BUTTON_WIDTH :: f32(86)
 INSPECTOR_BUTTON_HEIGHT :: f32(24)
 INSPECTOR_BUTTON_GAP :: f32(8)
+
+update_debug_text_console :: proc(state: ^App_State) -> game.Debug_Command {
+	when game.CONFIGURED_BUILD_MODE_NAME != "dev" {
+		return game.NO_DEBUG_COMMAND
+	}
+
+	for {
+		ch := rl.GetCharPressed()
+		if ch == 0 {
+			break
+		}
+
+		if ch >= 32 && ch <= 126 && state.debug_console_length < DEBUG_CONSOLE_INPUT_CAPACITY {
+			state.debug_console_input[state.debug_console_length] = u8(ch)
+			state.debug_console_length += 1
+		}
+	}
+
+	if rl.IsKeyPressed(.BACKSPACE) && state.debug_console_length > 0 {
+		state.debug_console_length -= 1
+		state.debug_console_input[state.debug_console_length] = 0
+	}
+
+	if rl.IsKeyPressed(.ENTER) || rl.IsKeyPressed(.KP_ENTER) {
+		result := game.parse_debug_text_command(debug_console_text(state))
+		state.debug_console_feedback = result.feedback
+		clear_debug_console(state)
+		return result.command
+	}
+
+	return game.NO_DEBUG_COMMAND
+}
 
 read_inspector_overlay_command :: proc(view: game.Inspector_Overlay_View) -> game.Debug_Command {
 	if view.build_mode != .Dev || !game.render_pass_enabled(view.render_debug.pass_toggles, .Inspector) {
@@ -87,7 +119,7 @@ read_object_picking_command :: proc(view: game.Inspector_Overlay_View) -> game.D
 	return game.NO_DEBUG_COMMAND
 }
 
-draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View) {
+draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View, console_text, console_feedback: string) {
 	debug_view := view.render_debug
 	toggles := debug_view.pass_toggles
 	ship := debug_view.player_ship
@@ -123,6 +155,8 @@ draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View) {
 	for index in 0..<view.scenarios.count {
 		draw_scenario_browser_row(view.scenarios.items[index], index)
 	}
+
+	draw_debug_console(console_text, console_feedback, view)
 }
 
 draw_invariant_line :: proc(view: game.Inspector_Overlay_View) {
@@ -168,6 +202,16 @@ draw_scenario_browser_row :: proc(item: game.Scenario_Browser_Item, index: int) 
 	rl.DrawText(fmt.ctprintf("%s %v seed=%v", marker, string(item.id), u64(item.seed)), c.int(INSPECTOR_X + INSPECTOR_PADDING), c.int(y + 5), 15, rl.SKYBLUE)
 	draw_button(scenario_run_button_rect(index), "Run")
 	draw_button(scenario_restart_button_rect(index), "Restart")
+}
+
+draw_debug_console :: proc(console_text, feedback: string, view: game.Inspector_Overlay_View) {
+	rl.DrawText("Text Command Console", c.int(INSPECTOR_X + INSPECTOR_PADDING), 450, 16, rl.RAYWHITE)
+	draw_inspector_line(fmt.ctprintf("> %s", console_text), 474)
+	draw_inspector_line(fmt.ctprintf("feedback: %s", feedback), 496)
+
+	if view.build_mode == .Dev && view.breakpoint_match.matched {
+		draw_inspector_line("commands: run/restart player_moves_forward, select 1, break event ship_moved, break invariant, dump", 518)
+	}
 }
 
 draw_button :: proc(rect: rl.Rectangle, label: cstring) {
@@ -287,4 +331,11 @@ on_off_text :: proc(enabled: bool) -> cstring {
 	}
 
 	return "off"
+}
+
+clear_debug_console :: proc(state: ^App_State) {
+	for i in 0..<state.debug_console_length {
+		state.debug_console_input[i] = 0
+	}
+	state.debug_console_length = 0
 }

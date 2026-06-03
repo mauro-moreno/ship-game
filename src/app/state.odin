@@ -2,6 +2,8 @@ package main
 
 import game "ship:game"
 
+DEBUG_CONSOLE_INPUT_CAPACITY :: 96
+
 App_State :: struct {
 	scenario:            game.Scenario,
 	simulation:          game.Simulation_State,
@@ -16,6 +18,11 @@ App_State :: struct {
 	invariant_report:    game.Invariant_Report,
 	frame_breakpoints:   game.Frame_Breakpoints,
 	breakpoint_match:    game.Frame_Breakpoint_Match,
+	replay:              game.Replay_Stream,
+	debug_console_input: [DEBUG_CONSOLE_INPUT_CAPACITY]u8,
+	debug_console_length: int,
+	debug_console_feedback: string,
+	debug_dump_requested: bool,
 }
 
 initial_app_state :: proc() -> App_State {
@@ -34,6 +41,8 @@ initial_app_state :: proc() -> App_State {
 		trace_filter = game.trace_filter_for_object(selected_object_id),
 		invariant_report = game.validate_simulation_invariants(scenario.initial_state),
 		frame_breakpoints = game.default_frame_breakpoints(),
+		replay = game.replay_from_scenario(scenario),
+		debug_console_feedback = "ready",
 	}
 }
 
@@ -46,6 +55,10 @@ advance_app_state :: proc(state: ^App_State, intent: game.Control_Intent, mode: 
 }
 
 apply_app_debug_command :: proc(state: ^App_State, command: game.Debug_Command, intent: game.Control_Intent, mode: game.Build_Mode) {
+	if command.kind != .None {
+		game.replay_record_debug_command(&state.replay, state.simulation.frame, command)
+	}
+
 	switch command.kind {
 	case .None:
 	case .Pause:
@@ -92,6 +105,8 @@ apply_app_debug_command :: proc(state: ^App_State, command: game.Debug_Command, 
 		game.toggle_frame_breakpoint_event_kind(&state.frame_breakpoints, command.event_kind)
 	case .Toggle_Break_On_Invariant_Failure:
 		game.toggle_frame_breakpoint_invariant_failure(&state.frame_breakpoints)
+	case .Export_Debug_Dump:
+		state.debug_dump_requested = true
 	}
 }
 
@@ -147,6 +162,10 @@ app_inspector_overlay_view :: proc(state: App_State, mode: game.Build_Mode) -> g
 		state.frame_breakpoints,
 		state.breakpoint_match,
 	)
+}
+
+debug_console_text :: proc(state: ^App_State) -> string {
+	return string(state.debug_console_input[:state.debug_console_length])
 }
 
 snapshot_diff_for_current_state :: proc(state: game.Simulation_State, selected_object_id: game.Object_ID) -> game.State_Snapshot_Diff {

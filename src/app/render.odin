@@ -11,7 +11,7 @@ SHIP_REAR_LENGTH_PIXELS :: f32(18)
 SHIP_HALF_WIDTH_PIXELS :: f32(16)
 VELOCITY_VECTOR_SCALE_PIXELS :: f32(52)
 
-render_frame :: proc(overlay_view: game.Inspector_Overlay_View) {
+render_frame :: proc(overlay_view: game.Inspector_Overlay_View, console_text, console_feedback: string) {
 	debug_view := overlay_view.render_debug
 
 	rl.BeginDrawing()
@@ -31,7 +31,7 @@ render_frame :: proc(overlay_view: game.Inspector_Overlay_View) {
 
 	when game.CONFIGURED_BUILD_MODE_NAME == "dev" {
 		if overlay_view.build_mode == .Dev && game.render_pass_enabled(debug_view.pass_toggles, .Inspector) {
-			draw_inspector_overlay(overlay_view)
+			draw_inspector_overlay(overlay_view, console_text, console_feedback)
 		}
 	}
 }
