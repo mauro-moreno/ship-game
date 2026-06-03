@@ -13,3 +13,22 @@ read_control_intent :: proc() -> game.Control_Intent {
 
 	return game.control_intent_from_input_state(input)
 }
+
+handle_dev_render_pass_toggles :: proc(mode: game.Build_Mode, toggles: ^game.Render_Pass_Toggles) {
+	if mode != .Dev {
+		return
+	}
+
+	if rl.IsKeyPressed(.ONE) {
+		game.toggle_render_pass(toggles, .Background)
+	}
+	if rl.IsKeyPressed(.TWO) {
+		game.toggle_render_pass(toggles, .World)
+	}
+	if rl.IsKeyPressed(.THREE) {
+		game.toggle_render_pass(toggles, .Debug)
+	}
+	if rl.IsKeyPressed(.FOUR) {
+		game.toggle_render_pass(toggles, .Inspector)
+	}
+}
