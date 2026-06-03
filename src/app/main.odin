@@ -15,9 +15,15 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		intent := read_control_intent()
 		handle_dev_render_pass_toggles(mode, &app_state.pass_toggles)
+		pre_step_view := game.simulation_view(app_state.simulation)
+		pre_step_overlay := game.inspector_overlay_view(mode, app_state.scenario, pre_step_view, app_state.pass_toggles, app_state.paused)
+		command := read_inspector_overlay_command(pre_step_overlay)
+
+		apply_app_debug_command(&app_state, command, intent, mode)
 		advance_app_state(&app_state, intent, mode)
 
-		debug_view := game.render_debug_view(game.simulation_view(app_state.simulation), app_state.pass_toggles)
-		render_frame(mode, app_state.scenario.id, debug_view)
+		view := game.simulation_view(app_state.simulation)
+		overlay_view := game.inspector_overlay_view(mode, app_state.scenario, view, app_state.pass_toggles, app_state.paused)
+		render_frame(overlay_view)
 	}
 }

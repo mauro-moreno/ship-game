@@ -5,18 +5,166 @@ import "core:fmt"
 import game "ship:game"
 import rl "vendor:raylib"
 
-draw_inspector_overlay :: proc(mode: game.Build_Mode, scenario_id: game.Scenario_Id, debug_view: game.Render_Debug_View) {
+INSPECTOR_X :: f32(16)
+INSPECTOR_Y :: f32(54)
+INSPECTOR_WIDTH :: f32(610)
+INSPECTOR_HEIGHT :: f32(250)
+INSPECTOR_PADDING :: f32(12)
+INSPECTOR_ROW_HEIGHT :: f32(26)
+INSPECTOR_BUTTON_WIDTH :: f32(86)
+INSPECTOR_BUTTON_HEIGHT :: f32(24)
+INSPECTOR_BUTTON_GAP :: f32(8)
+
+read_inspector_overlay_command :: proc(view: game.Inspector_Overlay_View) -> game.Debug_Command {
+	if view.build_mode != .Dev || !game.render_pass_enabled(view.render_debug.pass_toggles, .Inspector) {
+		return game.NO_DEBUG_COMMAND
+	}
+	if !rl.IsMouseButtonPressed(.LEFT) {
+		return game.NO_DEBUG_COMMAND
+	}
+
+	mouse := rl.GetMousePosition()
+
+	if point_hits(mouse, pause_button_rect()) {
+		return game.debug_pause_command()
+	}
+	if point_hits(mouse, resume_button_rect()) {
+		return game.debug_resume_command()
+	}
+	if point_hits(mouse, step_button_rect()) {
+		return game.debug_step_frame_command()
+	}
+
+	for index in 0..<view.scenarios.count {
+		item := view.scenarios.items[index]
+		if point_hits(mouse, scenario_run_button_rect(index)) {
+			return game.debug_run_scenario_command(item.id)
+		}
+		if point_hits(mouse, scenario_restart_button_rect(index)) {
+			return game.debug_restart_scenario_command(item.id)
+		}
+	}
+
+	return game.NO_DEBUG_COMMAND
+}
+
+draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View) {
+	debug_view := view.render_debug
 	toggles := debug_view.pass_toggles
 	ship := debug_view.player_ship
 	camera := debug_view.camera
 
-	draw_inspector_line(fmt.ctprintf("build=%v scenario=%v frame=%v", mode, string(scenario_id), u64(debug_view.frame)), 58)
-	draw_inspector_line(fmt.ctprintf("camera target=(%v,%v) zoom=%v", camera.target.x, camera.target.y, camera.zoom), 78)
-	draw_inspector_line(fmt.ctprintf("ship id=%v pos=(%v,%v) heading=%v", u32(ship.id), ship.position.x, ship.position.y, ship.heading), 98)
-	draw_inspector_line(fmt.ctprintf("velocity=(%v,%v) hitbox=(%v,%v)", ship.velocity.x, ship.velocity.y, ship.hitbox.half_width, ship.hitbox.half_height), 118)
-	draw_inspector_line(fmt.ctprintf("passes 1:bg=%v 2:world=%v 3:debug=%v 4:inspector=%v", toggles.background, toggles.world, toggles.debug, toggles.inspector), 138)
+	panel := inspector_panel_rect()
+	rl.DrawRectangleRec(panel, rl.Fade(rl.BLACK, 0.82))
+	rl.DrawRectangleLines(c.int(panel.x), c.int(panel.y), c.int(panel.width), c.int(panel.height), rl.DARKGRAY)
+
+	draw_inspector_line(fmt.ctprintf("build=%v scenario=%v seed=%v frame=%v status=%s", view.build_mode, string(view.scenario_id), u64(view.scenario_seed), u64(view.frame), runtime_status_text(view.paused)), 66)
+	draw_inspector_line(fmt.ctprintf("camera target=(%v,%v) zoom=%v", camera.target.x, camera.target.y, camera.zoom), 88)
+	draw_inspector_line(fmt.ctprintf("ship id=%v pos=(%v,%v) heading=%v", u32(ship.id), ship.position.x, ship.position.y, ship.heading), 110)
+	draw_inspector_line(fmt.ctprintf("velocity=(%v,%v) hitbox=(%v,%v)", ship.velocity.x, ship.velocity.y, ship.hitbox.half_width, ship.hitbox.half_height), 132)
+	draw_inspector_line(fmt.ctprintf("passes 1:bg=%v 2:world=%v 3:debug=%v 4:inspector=%v", toggles.background, toggles.world, toggles.debug, toggles.inspector), 154)
+
+	draw_button(pause_button_rect(), "Pause")
+	draw_button(resume_button_rect(), "Resume")
+	draw_button(step_button_rect(), "Step")
+
+	rl.DrawText("Scenario Browser", c.int(INSPECTOR_X + INSPECTOR_PADDING), 216, 16, rl.RAYWHITE)
+	for index in 0..<view.scenarios.count {
+		draw_scenario_browser_row(view.scenarios.items[index], index)
+	}
+}
+
+draw_scenario_browser_row :: proc(item: game.Scenario_Browser_Item, index: int) {
+	y := scenario_row_y(index)
+	marker := " "
+	if item.selected {
+		marker = "*"
+	}
+
+	rl.DrawText(fmt.ctprintf("%s %v seed=%v", marker, string(item.id), u64(item.seed)), c.int(INSPECTOR_X + INSPECTOR_PADDING), c.int(y + 5), 15, rl.SKYBLUE)
+	draw_button(scenario_run_button_rect(index), "Run")
+	draw_button(scenario_restart_button_rect(index), "Restart")
+}
+
+draw_button :: proc(rect: rl.Rectangle, label: cstring) {
+	fill := rl.Fade(rl.DARKGRAY, 0.92)
+	if point_hits(rl.GetMousePosition(), rect) {
+		fill = rl.Fade(rl.GRAY, 0.92)
+	}
+
+	rl.DrawRectangleRec(rect, fill)
+	rl.DrawRectangleLines(c.int(rect.x), c.int(rect.y), c.int(rect.width), c.int(rect.height), rl.RAYWHITE)
+
+	text_width := rl.MeasureText(label, 14)
+	text_x := rect.x + (rect.width - f32(text_width)) * 0.5
+	text_y := rect.y + (rect.height - 14) * 0.5
+	rl.DrawText(label, c.int(text_x), c.int(text_y), 14, rl.RAYWHITE)
 }
 
 draw_inspector_line :: proc(text: cstring, y: c.int) {
-	rl.DrawText(text, 24, y, 16, rl.SKYBLUE)
+	rl.DrawText(text, c.int(INSPECTOR_X + INSPECTOR_PADDING), y, 15, rl.SKYBLUE)
+}
+
+point_hits :: proc(point: rl.Vector2, rect: rl.Rectangle) -> bool {
+	return rl.CheckCollisionPointRec(point, rect)
+}
+
+runtime_status_text :: proc(paused: bool) -> cstring {
+	if paused {
+		return "paused"
+	}
+
+	return "running"
+}
+
+inspector_panel_rect :: proc() -> rl.Rectangle {
+	return rl.Rectangle {
+		x = INSPECTOR_X,
+		y = INSPECTOR_Y,
+		width = INSPECTOR_WIDTH,
+		height = INSPECTOR_HEIGHT,
+	}
+}
+
+pause_button_rect :: proc() -> rl.Rectangle {
+	return inspector_button_rect(0, 178)
+}
+
+resume_button_rect :: proc() -> rl.Rectangle {
+	return inspector_button_rect(1, 178)
+}
+
+step_button_rect :: proc() -> rl.Rectangle {
+	return inspector_button_rect(2, 178)
+}
+
+scenario_run_button_rect :: proc(index: int) -> rl.Rectangle {
+	return rl.Rectangle {
+		x = INSPECTOR_X + INSPECTOR_WIDTH - INSPECTOR_PADDING - INSPECTOR_BUTTON_WIDTH * 2 - INSPECTOR_BUTTON_GAP,
+		y = scenario_row_y(index),
+		width = INSPECTOR_BUTTON_WIDTH,
+		height = INSPECTOR_BUTTON_HEIGHT,
+	}
+}
+
+scenario_restart_button_rect :: proc(index: int) -> rl.Rectangle {
+	return rl.Rectangle {
+		x = INSPECTOR_X + INSPECTOR_WIDTH - INSPECTOR_PADDING - INSPECTOR_BUTTON_WIDTH,
+		y = scenario_row_y(index),
+		width = INSPECTOR_BUTTON_WIDTH,
+		height = INSPECTOR_BUTTON_HEIGHT,
+	}
+}
+
+inspector_button_rect :: proc(column: int, y: f32) -> rl.Rectangle {
+	return rl.Rectangle {
+		x = INSPECTOR_X + INSPECTOR_PADDING + f32(column) * (INSPECTOR_BUTTON_WIDTH + INSPECTOR_BUTTON_GAP),
+		y = y,
+		width = INSPECTOR_BUTTON_WIDTH,
+		height = INSPECTOR_BUTTON_HEIGHT,
+	}
+}
+
+scenario_row_y :: proc(index: int) -> f32 {
+	return 240 + f32(index) * INSPECTOR_ROW_HEIGHT
 }
