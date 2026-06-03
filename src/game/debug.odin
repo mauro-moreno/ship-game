@@ -11,11 +11,15 @@ Debug_Command_Kind :: enum {
 	Step_Frame,
 	Run_Scenario,
 	Restart_Scenario,
+	Select_Object,
+	Toggle_Selected_Hitbox,
+	Toggle_Selected_Velocity_Vector,
 }
 
 Debug_Command :: struct {
 	kind:        Debug_Command_Kind,
 	scenario_id: Scenario_Id,
+	object_id:   Object_ID,
 }
 
 Scenario_Browser_Item :: struct {
@@ -35,8 +39,11 @@ Inspector_Overlay_View :: struct {
 	scenario_id:   Scenario_Id,
 	scenario_seed: Scenario_Seed,
 	frame:         Frame_Step_Index,
+	selected_object_id: Object_ID,
 	render_debug:  Render_Debug_View,
 	scenarios:     Scenario_Browser_View,
+	snapshot_diff: State_Snapshot_Diff,
+	selected_trace: Event_Trace,
 }
 
 NO_DEBUG_COMMAND :: Debug_Command{kind = .None}
@@ -59,6 +66,18 @@ debug_run_scenario_command :: proc(id: Scenario_Id) -> Debug_Command {
 
 debug_restart_scenario_command :: proc(id: Scenario_Id) -> Debug_Command {
 	return Debug_Command{kind = .Restart_Scenario, scenario_id = id}
+}
+
+debug_select_object_command :: proc(id: Object_ID) -> Debug_Command {
+	return Debug_Command{kind = .Select_Object, object_id = id}
+}
+
+debug_toggle_selected_hitbox_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Selected_Hitbox}
+}
+
+debug_toggle_selected_velocity_vector_command :: proc() -> Debug_Command {
+	return Debug_Command{kind = .Toggle_Selected_Velocity_Vector}
 }
 
 scenario_browser_view :: proc(active_id: Scenario_Id) -> Scenario_Browser_View {
@@ -89,6 +108,10 @@ inspector_overlay_view :: proc(
 	view: Simulation_View,
 	toggles: Render_Pass_Toggles,
 	paused: bool,
+	selected_object_id: Object_ID,
+	ship_debug_visuals: Ship_Debug_Visual_Toggles,
+	snapshot_diff: State_Snapshot_Diff,
+	trace: Event_Trace,
 ) -> Inspector_Overlay_View {
 	return Inspector_Overlay_View {
 		build_mode = mode,
@@ -96,8 +119,11 @@ inspector_overlay_view :: proc(
 		scenario_id = scenario.id,
 		scenario_seed = scenario.seed,
 		frame = view.frame,
-		render_debug = render_debug_view(view, toggles),
+		selected_object_id = selected_object_id,
+		render_debug = render_debug_view_with_selection(view, toggles, selected_object_id, ship_debug_visuals),
 		scenarios = scenario_browser_view(scenario.id),
+		snapshot_diff = snapshot_diff,
+		selected_trace = trace_filter_by_object(trace, selected_object_id),
 	}
 }
 

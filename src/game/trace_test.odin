@@ -33,3 +33,17 @@ test_frame_step_trace_reports_invariant_failure :: proc(t: ^testing.T) {
 	testing.expect_value(t, result.trace.entries[0].kind, Event_Kind.Invariant_Failed)
 	testing.expect_value(t, result.trace.entries[0].frame, Frame_Step_Index(0))
 }
+
+@(test)
+test_trace_can_be_filtered_by_selected_object_id :: proc(t: ^testing.T) {
+	trace := run_scenario_with_trace(player_moves_forward_scenario()).trace
+	selected := trace_filter_by_object(trace, Object_ID(1))
+	missing := trace_filter_by_object(trace, Object_ID(2))
+
+	testing.expect_value(t, selected.count, 2)
+	testing.expect_value(t, selected.entries[0].kind, Event_Kind.Control_Intent_Applied)
+	testing.expect_value(t, selected.entries[0].object_id, Object_ID(1))
+	testing.expect_value(t, selected.entries[1].kind, Event_Kind.Ship_Moved)
+	testing.expect_value(t, selected.entries[1].object_id, Object_ID(1))
+	testing.expect_value(t, missing.count, 0)
+}

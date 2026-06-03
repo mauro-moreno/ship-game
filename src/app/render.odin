@@ -6,7 +6,6 @@ import "core:math"
 import game "ship:game"
 import rl "vendor:raylib"
 
-WORLD_PIXELS_PER_UNIT :: f32(32)
 SHIP_FORWARD_LENGTH_PIXELS :: f32(34)
 SHIP_REAR_LENGTH_PIXELS :: f32(18)
 SHIP_HALF_WIDTH_PIXELS :: f32(16)
@@ -38,20 +37,21 @@ render_frame :: proc(overlay_view: game.Inspector_Overlay_View) {
 }
 
 draw_background_pass :: proc(camera: game.Camera_State) {
-	center := screen_center()
+	viewport := current_render_viewport()
+	center := game.render_viewport_center(viewport)
 	grid_color := rl.DARKGRAY
 
 	for offset in -24..<25 {
 		world_x := camera.target.x + f32(offset)
-		start := world_to_screen(camera, game.Vec2{x = world_x, y = camera.target.y - 24})
-		end := world_to_screen(camera, game.Vec2{x = world_x, y = camera.target.y + 24})
+		start := game.render_world_to_screen(camera, viewport, game.Vec2{x = world_x, y = camera.target.y - 24})
+		end := game.render_world_to_screen(camera, viewport, game.Vec2{x = world_x, y = camera.target.y + 24})
 		draw_line(start, end, grid_color)
 	}
 
 	for offset in -16..<17 {
 		world_y := camera.target.y + f32(offset)
-		start := world_to_screen(camera, game.Vec2{x = camera.target.x - 24, y = world_y})
-		end := world_to_screen(camera, game.Vec2{x = camera.target.x + 24, y = world_y})
+		start := game.render_world_to_screen(camera, viewport, game.Vec2{x = camera.target.x - 24, y = world_y})
+		end := game.render_world_to_screen(camera, viewport, game.Vec2{x = camera.target.x + 24, y = world_y})
 		draw_line(start, end, grid_color)
 	}
 
@@ -62,7 +62,8 @@ draw_background_pass :: proc(camera: game.Camera_State) {
 
 draw_world_pass :: proc(debug_view: game.Render_Debug_View) {
 	ship := debug_view.player_ship
-	center := world_to_screen(debug_view.camera, ship.position)
+	viewport := current_render_viewport()
+	center := game.render_world_to_screen(debug_view.camera, viewport, ship.position)
 	forward := game.Vec2{x = math.cos(ship.heading), y = math.sin(ship.heading)}
 	side := game.Vec2{x = -forward.y, y = forward.x}
 
@@ -72,45 +73,43 @@ draw_world_pass :: proc(debug_view: game.Render_Debug_View) {
 	right := vec2_add(rear, vec2_scale(side, -SHIP_HALF_WIDTH_PIXELS))
 
 	rl.DrawTriangle(to_rl_vec2(tip), to_rl_vec2(right), to_rl_vec2(left), rl.SKYBLUE)
-	rl.DrawTriangleLines(to_rl_vec2(tip), to_rl_vec2(right), to_rl_vec2(left), rl.RAYWHITE)
+	outline_color := rl.RAYWHITE
+	label := fmt.ctprintf("Object %v", u32(ship.id))
+	if ship.id == debug_view.selected_object_id {
+		outline_color = rl.YELLOW
+		label = fmt.ctprintf("Object %v selected", u32(ship.id))
+	}
+	rl.DrawTriangleLines(to_rl_vec2(tip), to_rl_vec2(right), to_rl_vec2(left), outline_color)
 
 	label_pos := vec2_add(center, game.Vec2{x = 22, y = -38})
-	rl.DrawText(fmt.ctprintf("Object %v", u32(ship.id)), c.int(label_pos.x), c.int(label_pos.y), 16, rl.RAYWHITE)
+	rl.DrawText(label, c.int(label_pos.x), c.int(label_pos.y), 16, outline_color)
 }
 
 draw_debug_pass :: proc(debug_view: game.Render_Debug_View) {
 	ship := debug_view.player_ship
-	center := world_to_screen(debug_view.camera, ship.position)
-
-	hitbox_width := ship.hitbox.half_width * 2
-	hitbox_height := ship.hitbox.half_height * 2
-	rl.DrawRectangleLines(
-		c.int(center.x - ship.hitbox.half_width),
-		c.int(center.y - ship.hitbox.half_height),
-		c.int(hitbox_width),
-		c.int(hitbox_height),
-		rl.YELLOW,
-	)
-
-	velocity_end := vec2_add(center, vec2_scale(ship.velocity, VELOCITY_VECTOR_SCALE_PIXELS * debug_view.camera.zoom))
-	draw_line(center, velocity_end, rl.GREEN)
-	rl.DrawText("velocity", c.int(velocity_end.x + 6), c.int(velocity_end.y - 8), 12, rl.GREEN)
-}
-
-world_to_screen :: proc(camera: game.Camera_State, world: game.Vec2) -> game.Vec2 {
-	center := screen_center()
-	scale := WORLD_PIXELS_PER_UNIT * camera.zoom
-
-	return game.Vec2 {
-		x = center.x + (world.x - camera.target.x) * scale,
-		y = center.y + (world.y - camera.target.y) * scale,
+	if ship.id != debug_view.selected_object_id {
+		return
 	}
-}
 
-screen_center :: proc() -> game.Vec2 {
-	return game.Vec2 {
-		x = f32(rl.GetScreenWidth()) * 0.5,
-		y = f32(rl.GetScreenHeight()) * 0.5,
+	viewport := current_render_viewport()
+	center := game.render_world_to_screen(debug_view.camera, viewport, ship.position)
+
+	if debug_view.ship_debug_visuals.hitbox {
+		hitbox_width := ship.hitbox.half_width * 2
+		hitbox_height := ship.hitbox.half_height * 2
+		rl.DrawRectangleLines(
+			c.int(center.x - ship.hitbox.half_width),
+			c.int(center.y - ship.hitbox.half_height),
+			c.int(hitbox_width),
+			c.int(hitbox_height),
+			rl.YELLOW,
+		)
+	}
+
+	if debug_view.ship_debug_visuals.velocity_vector {
+		velocity_end := vec2_add(center, vec2_scale(ship.velocity, VELOCITY_VECTOR_SCALE_PIXELS * debug_view.camera.zoom))
+		draw_line(center, velocity_end, rl.GREEN)
+		rl.DrawText("velocity", c.int(velocity_end.x + 6), c.int(velocity_end.y - 8), 12, rl.GREEN)
 	}
 }
 
@@ -128,4 +127,8 @@ draw_line :: proc(start, end: game.Vec2, color: rl.Color) {
 
 to_rl_vec2 :: proc(v: game.Vec2) -> rl.Vector2 {
 	return rl.Vector2{v.x, v.y}
+}
+
+current_render_viewport :: proc() -> game.Render_Viewport {
+	return game.render_viewport(f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight()))
 }

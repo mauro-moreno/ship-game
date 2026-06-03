@@ -33,3 +33,16 @@ trace_append_all :: proc(trace: ^Event_Trace, other: Event_Trace) {
 		trace_append(trace, other.entries[i])
 	}
 }
+
+trace_filter_by_object :: proc(trace: Event_Trace, object_id: Object_ID) -> Event_Trace {
+	filtered: Event_Trace
+
+	for i in 0..<trace.count {
+		entry := trace.entries[i]
+		if entry.object_id == object_id {
+			trace_append(&filtered, entry)
+		}
+	}
+
+	return filtered
+}
