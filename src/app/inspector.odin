@@ -8,7 +8,7 @@ import rl "vendor:raylib"
 INSPECTOR_X :: f32(16)
 INSPECTOR_Y :: f32(54)
 INSPECTOR_WIDTH :: f32(760)
-INSPECTOR_HEIGHT :: f32(500)
+INSPECTOR_HEIGHT :: f32(600)
 INSPECTOR_PADDING :: f32(12)
 INSPECTOR_ROW_HEIGHT :: f32(26)
 INSPECTOR_BUTTON_WIDTH :: f32(86)
@@ -138,7 +138,8 @@ draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View, console_text, 
 	draw_trace_filter_line(view)
 	draw_filtered_trace_line(view)
 	draw_breakpoint_line(view)
-	draw_inspector_line(fmt.ctprintf("passes 1:bg=%v 2:world=%v 3:debug=%v 4:inspector=%v", toggles.background, toggles.world, toggles.debug, toggles.inspector), 264)
+	draw_performance_timing_lines(view)
+	draw_inspector_line(fmt.ctprintf("passes 1:bg=%v 2:world=%v 3:debug=%v 4:inspector=%v", toggles.background, toggles.world, toggles.debug, toggles.inspector), 374)
 
 	draw_button(pause_button_rect(), "Pause")
 	draw_button(resume_button_rect(), "Resume")
@@ -151,7 +152,7 @@ draw_inspector_overlay :: proc(view: game.Inspector_Overlay_View, console_text, 
 	draw_button(breakpoint_event_button_rect(), fmt.ctprintf("Brk Move %s", on_off_text(view.frame_breakpoints.pause_on_event_kind)))
 	draw_button(breakpoint_invariant_button_rect(), fmt.ctprintf("Brk Inv %s", on_off_text(view.frame_breakpoints.pause_on_invariant_failure)))
 
-	rl.DrawText("Scenario Browser", c.int(INSPECTOR_X + INSPECTOR_PADDING), 392, 16, rl.RAYWHITE)
+	rl.DrawText("Scenario Browser", c.int(INSPECTOR_X + INSPECTOR_PADDING), 500, 16, rl.RAYWHITE)
 	for index in 0..<view.scenarios.count {
 		draw_scenario_browser_row(view.scenarios.items[index], index)
 	}
@@ -192,6 +193,36 @@ draw_breakpoint_line :: proc(view: game.Inspector_Overlay_View) {
 	draw_inspector_line("breakpoint matched=false", 242)
 }
 
+draw_performance_timing_lines :: proc(view: game.Inspector_Overlay_View) {
+	timing := view.performance_timing
+	if !timing.available {
+		draw_inspector_line("timing unavailable", 264)
+		return
+	}
+
+	background_us := render_pass_elapsed_us(timing, .Background)
+	world_us := render_pass_elapsed_us(timing, .World)
+	debug_us := render_pass_elapsed_us(timing, .Debug)
+	inspector_us := render_pass_elapsed_us(timing, .Inspector)
+	entities := timing.entity_counts
+
+	draw_inspector_line(fmt.ctprintf("timing fps=%v frame=%vms", timing.fps, timing.frame_time_ms), 264)
+	draw_inspector_line(fmt.ctprintf("timing sim=%vus render=%vus", timing.simulation_step_us, timing.render_pipeline_us), 286)
+	draw_inspector_line(fmt.ctprintf("pass bg=%vus world=%vus", background_us, world_us), 308)
+	draw_inspector_line(fmt.ctprintf("pass debug=%vus inspector=%vus", debug_us, inspector_us), 330)
+	draw_inspector_line(fmt.ctprintf("entities ships=%v bullets=%v gameplay=%v trace=%v", entities.ships, entities.bullets, entities.gameplay_objects, entities.trace_entries), 352)
+}
+
+render_pass_elapsed_us :: proc(timing: game.Performance_Timing_View, pass: game.Render_Pass) -> u64 {
+	for i in 0..<timing.render_pass_count {
+		if timing.render_passes[i].pass == pass {
+			return timing.render_passes[i].elapsed_us
+		}
+	}
+
+	return 0
+}
+
 draw_scenario_browser_row :: proc(item: game.Scenario_Browser_Item, index: int) {
 	y := scenario_row_y(index)
 	marker := " "
@@ -205,12 +236,12 @@ draw_scenario_browser_row :: proc(item: game.Scenario_Browser_Item, index: int) 
 }
 
 draw_debug_console :: proc(console_text, feedback: string, view: game.Inspector_Overlay_View) {
-	rl.DrawText("Text Command Console", c.int(INSPECTOR_X + INSPECTOR_PADDING), 450, 16, rl.RAYWHITE)
-	draw_inspector_line(fmt.ctprintf("> %s", console_text), 474)
-	draw_inspector_line(fmt.ctprintf("feedback: %s", feedback), 496)
+	rl.DrawText("Text Command Console", c.int(INSPECTOR_X + INSPECTOR_PADDING), 558, 16, rl.RAYWHITE)
+	draw_inspector_line(fmt.ctprintf("> %s", console_text), 582)
+	draw_inspector_line(fmt.ctprintf("feedback: %s", feedback), 604)
 
 	if view.build_mode == .Dev && view.breakpoint_match.matched {
-		draw_inspector_line("commands: run/restart player_moves_forward, select 1, break event ship_moved, break invariant, dump", 518)
+		draw_inspector_line("commands: run/restart player_moves_forward, select 1, break event ship_moved, break invariant, dump", 626)
 	}
 }
 
@@ -255,43 +286,43 @@ inspector_panel_rect :: proc() -> rl.Rectangle {
 }
 
 pause_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(0, 288)
+	return inspector_button_rect(0, 398)
 }
 
 resume_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(1, 288)
+	return inspector_button_rect(1, 398)
 }
 
 step_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(2, 288)
+	return inspector_button_rect(2, 398)
 }
 
 hitbox_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(0, 318)
+	return inspector_button_rect(0, 428)
 }
 
 velocity_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(1, 318)
+	return inspector_button_rect(1, 428)
 }
 
 trace_object_filter_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(0, 348)
+	return inspector_button_rect(0, 458)
 }
 
 trace_frame_filter_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(1, 348)
+	return inspector_button_rect(1, 458)
 }
 
 trace_kind_filter_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(2, 348)
+	return inspector_button_rect(2, 458)
 }
 
 breakpoint_event_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(3, 348)
+	return inspector_button_rect(3, 458)
 }
 
 breakpoint_invariant_button_rect :: proc() -> rl.Rectangle {
-	return inspector_button_rect(4, 348)
+	return inspector_button_rect(4, 458)
 }
 
 scenario_run_button_rect :: proc(index: int) -> rl.Rectangle {
@@ -322,7 +353,7 @@ inspector_button_rect :: proc(column: int, y: f32) -> rl.Rectangle {
 }
 
 scenario_row_y :: proc(index: int) -> f32 {
-	return 416 + f32(index) * INSPECTOR_ROW_HEIGHT
+	return 524 + f32(index) * INSPECTOR_ROW_HEIGHT
 }
 
 on_off_text :: proc(enabled: bool) -> cstring {

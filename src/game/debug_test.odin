@@ -94,8 +94,11 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	invariant_report := validate_simulation_invariants(state)
 	breakpoints := default_frame_breakpoints()
 	breakpoint_match := frame_breakpoint_match(breakpoints, trace, invariant_report)
+	pass_timings := initial_render_pass_timings()
+	record_render_pass_timing(&pass_timings, .World, 250)
+	performance_timing := performance_timing_view_for_frame(.Dev, sim_view, trace.count, 120, 500, pass_timings, 60, 0.016)
 
-	overlay := inspector_overlay_view(.Dev, scenario, sim_view, toggles, true, Object_ID(1), visuals, diff, trace, trace_filter, invariant_report, breakpoints, breakpoint_match)
+	overlay := inspector_overlay_view(.Dev, scenario, sim_view, toggles, true, Object_ID(1), visuals, diff, trace, trace_filter, invariant_report, breakpoints, breakpoint_match, performance_timing)
 
 	testing.expect_value(t, overlay.build_mode, Build_Mode.Dev)
 	testing.expect(t, overlay.paused)
@@ -115,6 +118,10 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	testing.expect_value(t, overlay.filtered_trace.count, 1)
 	testing.expect_value(t, overlay.filtered_trace.entries[0].kind, Event_Kind.Ship_Moved)
 	testing.expect(t, !overlay.breakpoint_match.matched)
+	testing.expect(t, overlay.performance_timing.available)
+	testing.expect_value(t, overlay.performance_timing.simulation_step_us, u64(120))
+	testing.expect_value(t, overlay.performance_timing.render_pipeline_us, u64(500))
+	testing.expect_value(t, overlay.performance_timing.entity_counts.trace_entries, trace.count)
 }
 
 @(test)

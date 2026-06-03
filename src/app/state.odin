@@ -19,6 +19,12 @@ App_State :: struct {
 	frame_breakpoints:   game.Frame_Breakpoints,
 	breakpoint_match:    game.Frame_Breakpoint_Match,
 	replay:              game.Replay_Stream,
+	performance_timing:  game.Performance_Timing_View,
+	last_simulation_step_us: u64,
+	last_render_pipeline_us: u64,
+	last_render_pass_timings: game.Render_Pass_Timings,
+	last_fps:            i32,
+	last_frame_time_seconds: f64,
 	debug_console_input: [DEBUG_CONSOLE_INPUT_CAPACITY]u8,
 	debug_console_length: int,
 	debug_console_feedback: string,
@@ -42,6 +48,8 @@ initial_app_state :: proc() -> App_State {
 		invariant_report = game.validate_simulation_invariants(scenario.initial_state),
 		frame_breakpoints = game.default_frame_breakpoints(),
 		replay = game.replay_from_scenario(scenario),
+		last_render_pass_timings = game.initial_render_pass_timings(),
+		performance_timing = game.performance_timing_view_for_frame(.Dev, game.simulation_view(scenario.initial_state), 0, 0, 0, game.initial_render_pass_timings(), 0, 0),
 		debug_console_feedback = "ready",
 	}
 }
@@ -161,11 +169,40 @@ app_inspector_overlay_view :: proc(state: App_State, mode: game.Build_Mode) -> g
 		state.invariant_report,
 		state.frame_breakpoints,
 		state.breakpoint_match,
+		state.performance_timing,
 	)
 }
 
 debug_console_text :: proc(state: ^App_State) -> string {
 	return string(state.debug_console_input[:state.debug_console_length])
+}
+
+record_app_simulation_timing :: proc(state: ^App_State, mode: game.Build_Mode, simulation_step_us: u64, fps: i32, frame_time_seconds: f64) {
+	state.last_simulation_step_us = simulation_step_us
+	state.last_fps = fps
+	state.last_frame_time_seconds = frame_time_seconds
+	refresh_app_performance_timing(state, mode)
+}
+
+record_app_render_timing :: proc(state: ^App_State, mode: game.Build_Mode, render_timing: App_Render_Timing, fps: i32, frame_time_seconds: f64) {
+	state.last_render_pipeline_us = render_timing.pipeline_us
+	state.last_render_pass_timings = render_timing.pass_timings
+	state.last_fps = fps
+	state.last_frame_time_seconds = frame_time_seconds
+	refresh_app_performance_timing(state, mode)
+}
+
+refresh_app_performance_timing :: proc(state: ^App_State, mode: game.Build_Mode) {
+	state.performance_timing = game.performance_timing_view_for_frame(
+		mode,
+		game.simulation_view(state.simulation),
+		state.trace_tail.count,
+		state.last_simulation_step_us,
+		state.last_render_pipeline_us,
+		state.last_render_pass_timings,
+		state.last_fps,
+		state.last_frame_time_seconds,
+	)
 }
 
 snapshot_diff_for_current_state :: proc(state: game.Simulation_State, selected_object_id: game.Object_ID) -> game.State_Snapshot_Diff {

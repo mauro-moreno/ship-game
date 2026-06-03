@@ -84,6 +84,7 @@ Inspector_Overlay_View :: struct {
 	invariant_report: Invariant_Report,
 	frame_breakpoints: Frame_Breakpoints,
 	breakpoint_match:  Frame_Breakpoint_Match,
+	performance_timing: Performance_Timing_View,
 }
 
 NO_DEBUG_COMMAND :: Debug_Command{kind = .None}
@@ -289,6 +290,7 @@ inspector_overlay_view :: proc(
 	invariant_report: Invariant_Report,
 	breakpoints: Frame_Breakpoints,
 	breakpoint_match: Frame_Breakpoint_Match,
+	performance_timing: Performance_Timing_View,
 ) -> Inspector_Overlay_View {
 	return Inspector_Overlay_View {
 		build_mode = mode,
@@ -306,6 +308,7 @@ inspector_overlay_view :: proc(
 		invariant_report = invariant_report,
 		frame_breakpoints = breakpoints,
 		breakpoint_match = breakpoint_match,
+		performance_timing = performance_timing,
 	}
 }
 

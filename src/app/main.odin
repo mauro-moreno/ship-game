@@ -24,10 +24,24 @@ main :: proc() {
 			command = read_object_picking_command(pre_step_overlay)
 		}
 
+		simulation_start := f64(0)
+		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
+			simulation_start = timing_now_seconds()
+		}
 		apply_app_debug_command(&app_state, command, intent, mode)
 		advance_app_state(&app_state, intent, mode)
+		simulation_step_us := u64(0)
+		fps := i32(0)
+		frame_time_seconds := f64(0)
+		when game.CONFIGURED_BUILD_MODE_NAME != "release" {
+			simulation_step_us = elapsed_us_since(simulation_start)
+			fps = i32(rl.GetFPS())
+			frame_time_seconds = f64(rl.GetFrameTime())
+		}
+		record_app_simulation_timing(&app_state, mode, simulation_step_us, fps, frame_time_seconds)
 
 		overlay_view := app_inspector_overlay_view(app_state, mode)
-		render_frame(overlay_view, debug_console_text(&app_state), app_state.debug_console_feedback)
+		render_timing := render_frame(overlay_view, debug_console_text(&app_state), app_state.debug_console_feedback)
+		record_app_render_timing(&app_state, mode, render_timing, fps, frame_time_seconds)
 	}
 }
