@@ -1,5 +1,6 @@
 package game
 
+import "core:fmt"
 import "core:strings"
 import "core:testing"
 
@@ -166,7 +167,7 @@ test_inspector_overlay_view_uses_read_only_simulation_view :: proc(t: ^testing.T
 	testing.expect_value(t, overlay.render_debug.camera.target, sim_view.player_ship.position)
 	testing.expect_value(t, overlay.render_debug.selected_object_id, Object_ID(1))
 	testing.expect_value(t, overlay.render_debug.ship_debug_visuals, visuals)
-	testing.expect_value(t, overlay.scenarios.count, 1)
+	testing.expect_value(t, overlay.scenarios.count, scenario_count())
 	testing.expect(t, overlay.invariant_report.ok)
 	testing.expect_value(t, overlay.trace_filter, trace_filter)
 	testing.expect_value(t, overlay.filtered_trace.count, 1)
@@ -229,6 +230,25 @@ test_debug_text_commands_normalize_to_debug_commands :: proc(t: ^testing.T) {
 
 	testing.expect(t, dump.ok)
 	testing.expect_value(t, dump.command.kind, Debug_Command_Kind.Export_Debug_Dump)
+}
+
+@(test)
+test_debug_text_commands_accept_every_registered_scenario_id :: proc(t: ^testing.T) {
+	for index in 0..<scenario_count() {
+		scenario, ok := scenario_at(index)
+		testing.expect(t, ok)
+
+		run := parse_debug_text_command(fmt.tprintf("run %s", string(scenario.id)))
+		restart := parse_debug_text_command(fmt.tprintf("restart %s", string(scenario.id)))
+
+		testing.expect(t, run.ok)
+		testing.expect_value(t, run.command.kind, Debug_Command_Kind.Run_Scenario)
+		testing.expect_value(t, run.command.scenario_id, scenario.id)
+
+		testing.expect(t, restart.ok)
+		testing.expect_value(t, restart.command.kind, Debug_Command_Kind.Restart_Scenario)
+		testing.expect_value(t, restart.command.scenario_id, scenario.id)
+	}
 }
 
 @(test)

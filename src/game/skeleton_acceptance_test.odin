@@ -6,7 +6,7 @@ import "core:testing"
 @(test)
 test_debuggable_skeleton_acceptance_loop :: proc(t: ^testing.T) {
 	browser := scenario_browser_view(PLAYER_MOVES_FORWARD_ID)
-	testing.expect_value(t, browser.count, 1)
+	testing.expect_value(t, browser.count, scenario_count())
 	testing.expect_value(t, browser.items[0].id, PLAYER_MOVES_FORWARD_ID)
 
 	scenario, scenario_ok := scenario_by_id(browser.items[0].id)

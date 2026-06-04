@@ -295,7 +295,7 @@ draw_debug_console :: proc(console_text, feedback: string, view: game.Inspector_
 	draw_inspector_line(fmt.ctprintf("feedback: %s", feedback), 604)
 
 	if view.build_mode == .Dev && view.breakpoint_match.matched {
-		draw_inspector_line("commands: run/restart player_moves_forward, select 1, break event ship_moved, break invariant, dump", 626)
+		draw_inspector_line("commands: run/restart <scenario_id>, select 1, break event ship_moved, break invariant, dump", 626)
 	}
 }
 
