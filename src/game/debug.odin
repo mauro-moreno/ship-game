@@ -327,14 +327,6 @@ debug_text_error :: proc(feedback: string) -> Debug_Text_Command_Result {
 	}
 }
 
-scenario_id_from_text :: proc(text: string) -> (Scenario_Id, bool) {
-	if strings.equal_fold(text, string(PLAYER_MOVES_FORWARD_ID)) {
-		return PLAYER_MOVES_FORWARD_ID, true
-	}
-
-	return "", false
-}
-
 event_kind_from_text :: proc(text: string) -> (Event_Kind, bool) {
 	if strings.equal_fold(text, "scenario_started") {
 		return .Scenario_Started, true
@@ -354,24 +346,24 @@ event_kind_from_text :: proc(text: string) -> (Event_Kind, bool) {
 
 scenario_browser_view :: proc(active_id: Scenario_Id) -> Scenario_Browser_View {
 	view: Scenario_Browser_View
-	scenario := player_moves_forward_scenario()
 
-	view.items[0] = Scenario_Browser_Item {
-		id = scenario.id,
-		seed = scenario.seed,
-		selected = scenario.id == active_id,
+	count := scenario_count()
+	if count > MAX_SCENARIO_BROWSER_ITEMS {
+		count = MAX_SCENARIO_BROWSER_ITEMS
 	}
-	view.count = 1
+
+	for index in 0..<count {
+		scenario, ok := scenario_at(index)
+		assert(ok)
+		view.items[index] = Scenario_Browser_Item {
+			id = scenario.id,
+			seed = scenario.seed,
+			selected = scenario.id == active_id,
+		}
+		view.count += 1
+	}
 
 	return view
-}
-
-scenario_by_id :: proc(id: Scenario_Id) -> (Scenario, bool) {
-	if id == PLAYER_MOVES_FORWARD_ID {
-		return player_moves_forward_scenario(), true
-	}
-
-	return {}, false
 }
 
 inspector_overlay_view :: proc(input: Inspector_Overlay_View_Input) -> Inspector_Overlay_View {

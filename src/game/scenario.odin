@@ -29,6 +29,71 @@ player_moves_forward_scenario :: proc() -> Scenario {
 	}
 }
 
+SCENARIO_REGISTRY_COUNT :: 1
+
+Scenario_Builder :: proc() -> Scenario
+
+Scenario_Registry_Entry :: struct {
+	id:      Scenario_Id,
+	seed:    Scenario_Seed,
+	builder: Scenario_Builder,
+}
+
+scenario_registry :: proc() -> [SCENARIO_REGISTRY_COUNT]Scenario_Registry_Entry {
+	return [SCENARIO_REGISTRY_COUNT]Scenario_Registry_Entry {
+		Scenario_Registry_Entry {
+			id = PLAYER_MOVES_FORWARD_ID,
+			seed = PLAYER_MOVES_FORWARD_SEED,
+			builder = player_moves_forward_scenario,
+		},
+	}
+}
+
+scenario_count :: proc() -> int {
+	return SCENARIO_REGISTRY_COUNT
+}
+
+scenario_registry_entry_at :: proc(index: int) -> (Scenario_Registry_Entry, bool) {
+	if index < 0 || index >= SCENARIO_REGISTRY_COUNT {
+		return {}, false
+	}
+
+	entries := scenario_registry()
+	return entries[index], true
+}
+
+scenario_at :: proc(index: int) -> (Scenario, bool) {
+	if entry, ok := scenario_registry_entry_at(index); ok {
+		return entry.builder(), true
+	}
+
+	return {}, false
+}
+
+scenario_by_id :: proc(id: Scenario_Id) -> (Scenario, bool) {
+	entries := scenario_registry()
+	for index in 0..<SCENARIO_REGISTRY_COUNT {
+		entry := entries[index]
+		if entry.id == id {
+			return entry.builder(), true
+		}
+	}
+
+	return {}, false
+}
+
+scenario_id_from_text :: proc(text: string) -> (Scenario_Id, bool) {
+	entries := scenario_registry()
+	for index in 0..<SCENARIO_REGISTRY_COUNT {
+		entry := entries[index]
+		if text == string(entry.id) {
+			return entry.id, true
+		}
+	}
+
+	return "", false
+}
+
 scenario_control_intent :: proc(scenario: Scenario, step_index: Frame_Step_Index) -> Control_Intent {
 	if step_index == 0 {
 		return scenario.first_intent

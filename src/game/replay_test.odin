@@ -22,6 +22,21 @@ test_replay_records_player_moves_forward_and_reproduces_final_state :: proc(t: ^
 }
 
 @(test)
+test_registered_scenarios_replay_to_same_final_state :: proc(t: ^testing.T) {
+	for index in 0..<scenario_count() {
+		scenario, ok := scenario_at(index)
+		testing.expect(t, ok)
+
+		replay := replay_from_scenario(scenario)
+		replayed_state := replay_simulation(replay, scenario.initial_state, .Test)
+		expected_state := run_scenario(scenario, .Test)
+
+		testing.expect_value(t, replay.scenario_id, scenario.id)
+		testing.expect_value(t, replayed_state, expected_state)
+	}
+}
+
+@(test)
 test_replay_records_normalized_debug_commands :: proc(t: ^testing.T) {
 	scenario := player_moves_forward_scenario()
 	replay := replay_from_scenario(scenario)

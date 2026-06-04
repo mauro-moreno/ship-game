@@ -34,7 +34,8 @@ App_State :: struct {
 }
 
 initial_app_state :: proc() -> App_State {
-	scenario := game.player_moves_forward_scenario()
+	scenario, scenario_ok := game.scenario_at(0)
+	assert(scenario_ok)
 	selected_object_id := scenario.initial_state.ship.id
 
 	return App_State {

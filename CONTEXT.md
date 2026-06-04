@@ -84,6 +84,14 @@ _Avoid_: recording, demo
 A named, minimal Simulation setup used to reproduce or verify one gameplay behavior.
 _Avoid_: fixture, test case
 
+**Single-Intent Scenario**:
+A Scenario that applies one Control Intent for one Frame Step to isolate one movement or gameplay behavior.
+_Avoid_: compound scenario, demo sequence
+
+**Scenario Registry**:
+The ordered catalog of predefined Scenarios available to tests, Replay, text commands, and the Scenario Browser.
+_Avoid_: scenario list, scenario switch
+
 **Render Pipeline**:
 The ordered set of raylib drawing passes that turn Simulation views into the final frame.
 _Avoid_: draw function, renderer blob

@@ -3,6 +3,19 @@ package game
 import "core:testing"
 
 @(test)
+test_scenario_registry_exposes_player_moves_forward_as_first_registered_scenario :: proc(t: ^testing.T) {
+	testing.expect_value(t, scenario_count(), 1)
+
+	scenario, ok := scenario_at(0)
+
+	testing.expect(t, ok)
+	testing.expect_value(t, scenario.id, PLAYER_MOVES_FORWARD_ID)
+	testing.expect_value(t, scenario.seed, PLAYER_MOVES_FORWARD_SEED)
+	testing.expect_value(t, scenario.initial_heading, PLAYER_MOVES_FORWARD_INITIAL_HEADING)
+	testing.expect(t, scenario.first_intent.forward_thrust)
+}
+
+@(test)
 test_player_moves_forward_scenario_has_reusable_setup :: proc(t: ^testing.T) {
 	scenario := player_moves_forward_scenario()
 	view := simulation_view(scenario.initial_state)

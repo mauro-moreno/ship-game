@@ -99,14 +99,22 @@ test_debug_commands_are_explicit_simulation_mutation_requests :: proc(t: ^testin
 test_scenario_browser_lists_player_moves_forward :: proc(t: ^testing.T) {
 	browser := scenario_browser_view(PLAYER_MOVES_FORWARD_ID)
 
-	testing.expect_value(t, browser.count, 1)
+	testing.expect_value(t, browser.count, scenario_count())
 	testing.expect_value(t, browser.items[0].id, PLAYER_MOVES_FORWARD_ID)
 	testing.expect_value(t, browser.items[0].seed, PLAYER_MOVES_FORWARD_SEED)
 	testing.expect(t, browser.items[0].selected)
 
-	scenario, ok := scenario_by_id(PLAYER_MOVES_FORWARD_ID)
-	testing.expect(t, ok)
-	testing.expect_value(t, scenario.id, PLAYER_MOVES_FORWARD_ID)
+	for index in 0..<scenario_count() {
+		registered, registered_ok := scenario_at(index)
+		testing.expect(t, registered_ok)
+		testing.expect_value(t, browser.items[index].id, registered.id)
+		testing.expect_value(t, browser.items[index].seed, registered.seed)
+
+		looked_up, lookup_ok := scenario_by_id(browser.items[index].id)
+		testing.expect(t, lookup_ok)
+		testing.expect_value(t, looked_up.id, registered.id)
+		testing.expect_value(t, looked_up.seed, registered.seed)
+	}
 }
 
 @(test)
@@ -227,6 +235,7 @@ test_debug_text_commands_normalize_to_debug_commands :: proc(t: ^testing.T) {
 test_invalid_debug_text_command_is_readable_noop :: proc(t: ^testing.T) {
 	invalid := parse_debug_text_command("warp 100")
 	bad_scenario := parse_debug_text_command("restart missing_scenario")
+	wrong_case_scenario := parse_debug_text_command("run PLAYER_MOVES_FORWARD")
 	bad_object := parse_debug_text_command("select no")
 
 	testing.expect(t, !invalid.ok)
@@ -236,6 +245,10 @@ test_invalid_debug_text_command_is_readable_noop :: proc(t: ^testing.T) {
 	testing.expect(t, !bad_scenario.ok)
 	testing.expect_value(t, bad_scenario.command.kind, Debug_Command_Kind.None)
 	testing.expect(t, strings.contains(bad_scenario.feedback, "scenario"))
+
+	testing.expect(t, !wrong_case_scenario.ok)
+	testing.expect_value(t, wrong_case_scenario.command.kind, Debug_Command_Kind.None)
+	testing.expect(t, strings.contains(wrong_case_scenario.feedback, "scenario"))
 
 	testing.expect(t, !bad_object.ok)
 	testing.expect_value(t, bad_object.command.kind, Debug_Command_Kind.None)
