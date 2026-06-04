@@ -18,6 +18,7 @@ This project treats debugging as part of the game architecture. The goal is that
 ## First Tools
 
 - Inspector Overlay in `dev` Build Mode.
+- Inspector Overlay field interpretation: see [Inspector Overlay](inspector-overlay.md).
 - Scenario Browser for running named Scenarios visually.
 - Minimal Replay using seed plus input and Debug Command stream.
 - Compact Event Trace in all Build Modes, with verbose categories in `dev` and `test`.
