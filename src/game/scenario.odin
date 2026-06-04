@@ -20,6 +20,10 @@ PLAYER_MOVES_BACKWARD_ID :: Scenario_Id("player_moves_backward")
 PLAYER_MOVES_BACKWARD_SEED :: Scenario_Seed(2)
 PLAYER_MOVES_BACKWARD_INITIAL_HEADING :: f32(0)
 
+PLAYER_TURNS_LEFT_ID :: Scenario_Id("player_turns_left")
+PLAYER_TURNS_LEFT_SEED :: Scenario_Seed(3)
+PLAYER_TURNS_LEFT_INITIAL_HEADING :: f32(0)
+
 player_moves_forward_scenario :: proc() -> Scenario {
 	initial_state := initial_simulation_state_with_heading(PLAYER_MOVES_FORWARD_INITIAL_HEADING)
 
@@ -46,7 +50,20 @@ player_moves_backward_scenario :: proc() -> Scenario {
 	}
 }
 
-SCENARIO_REGISTRY_COUNT :: 2
+player_turns_left_scenario :: proc() -> Scenario {
+	initial_state := initial_simulation_state_with_heading(PLAYER_TURNS_LEFT_INITIAL_HEADING)
+
+	return Scenario {
+		id = PLAYER_TURNS_LEFT_ID,
+		seed = PLAYER_TURNS_LEFT_SEED,
+		initial_heading = PLAYER_TURNS_LEFT_INITIAL_HEADING,
+		initial_state = initial_state,
+		step_count = 1,
+		first_intent = Control_Intent{turn_left = true},
+	}
+}
+
+SCENARIO_REGISTRY_COUNT :: 3
 
 Scenario_Builder :: proc() -> Scenario
 
@@ -67,6 +84,11 @@ scenario_registry :: proc() -> [SCENARIO_REGISTRY_COUNT]Scenario_Registry_Entry 
 			id = PLAYER_MOVES_BACKWARD_ID,
 			seed = PLAYER_MOVES_BACKWARD_SEED,
 			builder = player_moves_backward_scenario,
+		},
+		Scenario_Registry_Entry {
+			id = PLAYER_TURNS_LEFT_ID,
+			seed = PLAYER_TURNS_LEFT_SEED,
+			builder = player_turns_left_scenario,
 		},
 	}
 }
